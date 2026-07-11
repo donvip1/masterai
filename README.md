@@ -22,14 +22,15 @@ Open `http://localhost:3000`.
 2. Open `Extensions -> Apps Script`.
 3. Paste the full contents of `google-apps-script/Code.gs`.
 4. Confirm `NOTIFICATION_EMAIL` is `viplearn4free@gmail.com`, or change it if you want responses sent elsewhere.
-5. Save the script, then run `setupSheet` once and approve the permissions for Sheets, Gmail, and Drive.
-6. Click `Deploy -> New deployment`.
-7. Select `Web app`.
-8. Set `Execute as` to `Me`.
-9. Set access to `Anyone`.
-10. Deploy and copy the Web App URL.
-11. In Vercel, add an environment variable named `GOOGLE_SCRIPT_URL` with that Web App URL.
-12. Redeploy the Vercel project.
+5. If Apps Script gives `Cannot read properties of null (reading 'getSheetByName')`, copy the Sheet ID from the Google Sheet URL and paste it into `SPREADSHEET_ID`.
+6. Save the script, then run `setupSheet` once and approve the permissions for Sheets, Gmail, and Drive.
+7. Click `Deploy -> New deployment`.
+8. Select `Web app`.
+9. Set `Execute as` to `Me`.
+10. Set access to `Anyone`.
+11. Deploy and copy the Web App URL.
+12. In Vercel, add an environment variable named `GOOGLE_SCRIPT_URL` with that Web App URL.
+13. Redeploy the Vercel project.
 
 After this:
 

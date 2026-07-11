@@ -1,4 +1,5 @@
 const CONFIG = {
+  SPREADSHEET_ID: "",
   SHEET_NAME: "Registrations",
   QUIZ_SHEET_NAME: "Quiz Submissions",
   NOTIFICATION_EMAIL: "viplearn4free@gmail.com",
@@ -183,7 +184,7 @@ function handleQuizSubmission(payload) {
 }
 
 function getOrCreateSheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const spreadsheet = getSpreadsheet();
   let sheet = spreadsheet.getSheetByName(CONFIG.SHEET_NAME);
 
   if (!sheet) {
@@ -196,7 +197,7 @@ function getOrCreateSheet() {
 }
 
 function getOrCreateQuizSheet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const spreadsheet = getSpreadsheet();
   let sheet = spreadsheet.getSheetByName(CONFIG.QUIZ_SHEET_NAME);
 
   if (!sheet) {
@@ -206,6 +207,20 @@ function getOrCreateQuizSheet() {
   ensureQuizHeaders(sheet);
 
   return sheet;
+}
+
+function getSpreadsheet() {
+  if (CONFIG.SPREADSHEET_ID) {
+    return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  }
+
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  if (!spreadsheet) {
+    throw new Error("No spreadsheet is connected. Open your Google Sheet, copy its ID from the URL, and paste it into CONFIG.SPREADSHEET_ID in Code.gs.");
+  }
+
+  return spreadsheet;
 }
 
 function ensureHeaders(sheet) {
