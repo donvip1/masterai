@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const registerHandler = require("../api/register");
+const quizHandler = require("../api/quiz");
 
 const root = path.resolve(__dirname, "..");
 const port = Number(process.env.PORT || 3000);
@@ -53,6 +54,11 @@ const server = http.createServer(async (req, res) => {
   if (req.url.startsWith("/api/register")) {
     req.body = await collectBody(req);
     return registerHandler(req, res);
+  }
+
+  if (req.url.startsWith("/api/quiz")) {
+    req.body = await collectBody(req);
+    return quizHandler(req, res);
   }
 
   const filePath = safePath(req.url);

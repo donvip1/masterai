@@ -1,27 +1,27 @@
 const form = document.querySelector("#registrationForm");
 const statusBox = document.querySelector("#formStatus");
-const formSteps = Array.from(form.querySelectorAll(".form-step"));
-const progressSteps = Array.from(form.querySelectorAll(".progress-step"));
-const previousButton = form.querySelector("[data-form-prev]");
-const nextButton = form.querySelector("[data-form-next]");
-const submitButton = form.querySelector(".submit-button");
-const stepCounter = form.querySelector("#stepCounter");
-const paymentRadios = Array.from(form.querySelectorAll('input[name="paymentReadiness"]'));
-const screenshotInput = form.querySelector("#paymentScreenshot");
-const screenshotHint = form.querySelector("#screenshotHint");
-const interestInputs = Array.from(form.querySelectorAll('input[name="interests"]'));
-const deviceInputs = Array.from(form.querySelectorAll('input[name="learningDevices"]'));
-const courseFeeInput = form.querySelector("#courseFeeInput");
-const courseCountInput = form.querySelector("#courseCountInput");
-const pricingBreakdownInput = form.querySelector("#pricingBreakdownInput");
-const selectedCourseFee = form.querySelector("#selectedCourseFee");
-const selectedCourseCount = form.querySelector("#selectedCourseCount");
-const selectedCourseList = form.querySelector("#selectedCourseList");
-const pricingBreakdownText = form.querySelector("#pricingBreakdownText");
-const paymentCourseFee = form.querySelector("#paymentCourseFee");
-const paymentCourseBreakdown = form.querySelector("#paymentCourseBreakdown");
-const finalCourseFee = form.querySelector("#finalCourseFee");
-const finalCourseBreakdown = form.querySelector("#finalCourseBreakdown");
+const formSteps = form ? Array.from(form.querySelectorAll(".form-step")) : [];
+const progressSteps = form ? Array.from(form.querySelectorAll(".progress-step")) : [];
+const previousButton = form?.querySelector("[data-form-prev]");
+const nextButton = form?.querySelector("[data-form-next]");
+const submitButton = form?.querySelector(".submit-button");
+const stepCounter = form?.querySelector("#stepCounter");
+const paymentRadios = form ? Array.from(form.querySelectorAll('input[name="paymentReadiness"]')) : [];
+const screenshotInput = form?.querySelector("#paymentScreenshot");
+const screenshotHint = form?.querySelector("#screenshotHint");
+const interestInputs = form ? Array.from(form.querySelectorAll('input[name="interests"]')) : [];
+const deviceInputs = form ? Array.from(form.querySelectorAll('input[name="learningDevices"]')) : [];
+const courseFeeInput = form?.querySelector("#courseFeeInput");
+const courseCountInput = form?.querySelector("#courseCountInput");
+const pricingBreakdownInput = form?.querySelector("#pricingBreakdownInput");
+const selectedCourseFee = form?.querySelector("#selectedCourseFee");
+const selectedCourseCount = form?.querySelector("#selectedCourseCount");
+const selectedCourseList = form?.querySelector("#selectedCourseList");
+const pricingBreakdownText = form?.querySelector("#pricingBreakdownText");
+const paymentCourseFee = form?.querySelector("#paymentCourseFee");
+const paymentCourseBreakdown = form?.querySelector("#paymentCourseBreakdown");
+const finalCourseFee = form?.querySelector("#finalCourseFee");
+const finalCourseBreakdown = form?.querySelector("#finalCourseBreakdown");
 
 const paidProofValue = "I have paid and uploaded proof";
 const maxSourceScreenshotSize = 8 * 1024 * 1024;
@@ -65,6 +65,10 @@ function calculateCoursePricing(count) {
 }
 
 function setStatus(type, message) {
+  if (!statusBox) {
+    return;
+  }
+
   if (!message) {
     statusBox.className = "form-status";
     statusBox.textContent = "";
@@ -73,6 +77,28 @@ function setStatus(type, message) {
 
   statusBox.className = `form-status is-visible ${type}`;
   statusBox.textContent = message;
+}
+
+function showRegistrationSuccess(result) {
+  if (!statusBox) {
+    return;
+  }
+
+  statusBox.className = "form-status is-visible success";
+  statusBox.textContent = `Congratulations! Your registration has been received. Your Student ID is ${result.studentId || "being generated"}. We will contact you via WhatsApp or email with the next steps.`;
+
+  if (result.onboardingLink) {
+    const separator = document.createElement("br");
+    const link = document.createElement("a");
+
+    link.href = result.onboardingLink;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = "Join the paid students WhatsApp class group";
+
+    statusBox.appendChild(separator);
+    statusBox.appendChild(link);
+  }
 }
 
 function getCheckedValues(formData, name) {
@@ -88,7 +114,7 @@ function selectedDevices() {
 }
 
 function selectedPaymentValue() {
-  return form.querySelector('input[name="paymentReadiness"]:checked')?.value || "";
+  return form?.querySelector('input[name="paymentReadiness"]:checked')?.value || "";
 }
 
 function isPaymentProofRequired() {
@@ -96,6 +122,10 @@ function isPaymentProofRequired() {
 }
 
 function updateScreenshotRequirement() {
+  if (!screenshotInput || !screenshotHint) {
+    return;
+  }
+
   const required = isPaymentProofRequired();
   screenshotInput.required = required;
   screenshotInput.setCustomValidity("");
@@ -107,6 +137,10 @@ function updateScreenshotRequirement() {
 function updatePricing() {
   const courses = selectedInterests();
   const pricing = calculateCoursePricing(courses.length);
+
+  if (!courseFeeInput) {
+    return;
+  }
 
   courseFeeInput.value = String(pricing.courseFee);
   courseCountInput.value = String(pricing.courseCount);
@@ -320,80 +354,275 @@ paymentRadios.forEach((radio) => {
   radio.addEventListener("change", updateScreenshotRequirement);
 });
 
-previousButton.addEventListener("click", () => {
-  setStep(currentStep - 1);
-});
+if (form) {
+  previousButton.addEventListener("click", () => {
+    setStep(currentStep - 1);
+  });
 
-nextButton.addEventListener("click", () => {
-  if (validateStep(currentStep)) {
-    setStep(currentStep + 1);
-  }
-});
+  nextButton.addEventListener("click", () => {
+    if (validateStep(currentStep)) {
+      setStep(currentStep + 1);
+    }
+  });
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  updatePricing();
-  updateScreenshotRequirement();
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    updatePricing();
+    updateScreenshotRequirement();
 
-  for (let index = 0; index < formSteps.length; index += 1) {
-    setStep(index);
+    for (let index = 0; index < formSteps.length; index += 1) {
+      setStep(index);
 
-    if (!validateStep(index)) {
+      if (!validateStep(index)) {
+        return;
+      }
+    }
+
+    setAllStepControlsDisabled(false);
+    const payload = buildPayload(form);
+    const validationError = validateForm(payload);
+
+    if (validationError) {
+      setStep(formSteps.length - 1);
+      setStatus("error", validationError);
       return;
     }
-  }
 
-  setAllStepControlsDisabled(false);
-  const payload = buildPayload(form);
-  const validationError = validateForm(payload);
+    submitButton.disabled = true;
+    submitButton.textContent = "Submitting...";
+    setStatus("success", "Preparing your registration...");
 
-  if (validationError) {
-    setStep(formSteps.length - 1);
-    setStatus("error", validationError);
+    try {
+      payload.paymentScreenshot = await preparePaymentScreenshot();
+      setStatus("success", "Sending your registration...");
+
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Registration could not be submitted.");
+      }
+
+      form.reset();
+      updatePricing();
+      setStep(0);
+      showRegistrationSuccess(result);
+    } catch (error) {
+      setStep(formSteps.length - 1);
+      setStatus(
+        "error",
+        error.message || "Something went wrong. Please try again or contact the academy on WhatsApp."
+      );
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Submit Registration";
+    }
+  });
+
+  updatePricing();
+  updateScreenshotRequirement();
+  setStep(0);
+}
+
+const quizModules = Array.isArray(window.EFF_QUIZ_MODULES) ? window.EFF_QUIZ_MODULES : [];
+const quizForm = document.querySelector("#quizForm");
+const quizModuleSelect = document.querySelector("#quizModule");
+const quizQuestions = document.querySelector("#quizQuestions");
+const quizStatus = document.querySelector("#quizStatus");
+const quizModuleTitle = document.querySelector("#quizModuleTitle");
+const quizModuleMeta = document.querySelector("#quizModuleMeta");
+const quizResult = document.querySelector("#quizResult");
+const quizSubmitButton = quizForm?.querySelector(".quiz-submit");
+
+function setQuizStatus(type, message) {
+  if (!quizStatus) {
     return;
   }
 
-  submitButton.disabled = true;
-  submitButton.textContent = "Submitting...";
-  setStatus("success", "Preparing your registration...");
+  if (!message) {
+    quizStatus.className = "form-status";
+    quizStatus.textContent = "";
+    return;
+  }
 
-  try {
-    payload.paymentScreenshot = await preparePaymentScreenshot();
-    setStatus("success", "Sending your registration...");
+  quizStatus.className = `form-status is-visible ${type}`;
+  quizStatus.textContent = message;
+}
 
-    const response = await fetch("/api/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
+function getCurrentQuizModule() {
+  const selectedId = quizModuleSelect?.value || "";
+  return quizModules.find((module) => module.id === selectedId) || null;
+}
+
+function populateQuizModules() {
+  if (!quizModuleSelect) {
+    return;
+  }
+
+  quizModules.forEach((module) => {
+    const option = document.createElement("option");
+    option.value = module.id;
+    option.textContent = module.title;
+    quizModuleSelect.appendChild(option);
+  });
+}
+
+function renderQuizQuestions() {
+  const module = getCurrentQuizModule();
+  quizQuestions.innerHTML = "";
+  quizResult.textContent = "";
+  setQuizStatus("", "");
+
+  if (!module) {
+    quizModuleTitle.textContent = "No module selected";
+    quizModuleMeta.textContent = "Choose a module to load its objective questions.";
+    const empty = document.createElement("p");
+    empty.className = "quiz-empty";
+    empty.textContent = "Select a module above to begin.";
+    quizQuestions.appendChild(empty);
+    return;
+  }
+
+  quizModuleTitle.textContent = module.title;
+  quizModuleMeta.textContent = `${module.questions.length} objective questions. Your result will be submitted to the academy sheet.`;
+
+  module.questions.forEach((question, questionIndex) => {
+    const card = document.createElement("article");
+    card.className = "quiz-question-card";
+
+    const heading = document.createElement("h3");
+    heading.textContent = `${questionIndex + 1}. ${question.question}`;
+    card.appendChild(heading);
+
+    const options = document.createElement("div");
+    options.className = "quiz-options";
+
+    question.options.forEach((option, optionIndex) => {
+      const optionId = `quiz_${question.id}_${optionIndex}`;
+      const label = document.createElement("label");
+      const radio = document.createElement("input");
+
+      radio.type = "radio";
+      radio.id = optionId;
+      radio.name = `quiz_${question.id}`;
+      radio.value = option;
+      radio.required = true;
+
+      const text = document.createTextNode(option);
+      label.setAttribute("for", optionId);
+      label.appendChild(radio);
+      label.appendChild(text);
+      options.appendChild(label);
     });
 
-    const result = await response.json().catch(() => ({}));
+    card.appendChild(options);
+    quizQuestions.appendChild(card);
+  });
+}
 
-    if (!response.ok || !result.ok) {
-      throw new Error(result.message || "Registration could not be submitted.");
+function buildQuizPayload() {
+  const formData = new FormData(quizForm);
+  const module = getCurrentQuizModule();
+
+  return {
+    submissionType: "quiz",
+    fullName: formData.get("fullName")?.trim(),
+    whatsappNumber: formData.get("whatsappNumber")?.trim(),
+    emailAddress: formData.get("emailAddress")?.trim(),
+    studentId: formData.get("studentId")?.trim(),
+    moduleId: module?.id || "",
+    moduleTitle: module?.title || "",
+    answers: module
+      ? module.questions.map((question) => ({
+          questionId: question.id,
+          selectedAnswer: formData.get(`quiz_${question.id}`)
+        }))
+      : [],
+    quizWebsite: formData.get("quizWebsite")?.trim(),
+    pageUrl: window.location.href
+  };
+}
+
+function validateQuizPayload(payload) {
+  if (!payload.moduleId) {
+    return "Select a module before submitting the quiz.";
+  }
+
+  if (payload.answers.some((answer) => !answer.selectedAnswer)) {
+    return "Answer every objective question before submitting.";
+  }
+
+  return "";
+}
+
+function showQuizResult(result) {
+  quizResult.innerHTML = "";
+
+  const score = document.createElement("strong");
+  score.textContent = `Score: ${result.score}/${result.total} (${result.percentage}%)`;
+
+  const detail = document.createElement("span");
+  detail.textContent = result.passed ? "Passed and submitted." : "Submitted. Please review this module again.";
+
+  quizResult.appendChild(score);
+  quizResult.appendChild(detail);
+}
+
+if (quizForm && quizModuleSelect) {
+  populateQuizModules();
+  renderQuizQuestions();
+
+  quizModuleSelect.addEventListener("change", renderQuizQuestions);
+
+  quizForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!quizForm.checkValidity()) {
+      quizForm.reportValidity();
+      return;
     }
 
-    form.reset();
-    updatePricing();
-    setStep(0);
-    setStatus(
-      "success",
-      `Congratulations! Your registration has been received. Your Student ID is ${result.studentId || "being generated"}. We will contact you via WhatsApp or email with the next steps.`
-    );
-  } catch (error) {
-    setStep(formSteps.length - 1);
-    setStatus(
-      "error",
-      error.message || "Something went wrong. Please try again or contact the academy on WhatsApp."
-    );
-  } finally {
-    submitButton.disabled = false;
-    submitButton.textContent = "Submit Registration";
-  }
-});
+    const payload = buildQuizPayload();
+    const validationError = validateQuizPayload(payload);
 
-updatePricing();
-updateScreenshotRequirement();
-setStep(0);
+    if (validationError) {
+      setQuizStatus("error", validationError);
+      return;
+    }
+
+    quizSubmitButton.disabled = true;
+    quizSubmitButton.textContent = "Submitting...";
+    setQuizStatus("success", "Submitting your quiz...");
+
+    try {
+      const response = await fetch("/api/quiz", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Quiz could not be submitted.");
+      }
+
+      showQuizResult(result);
+      setQuizStatus("success", "Your quiz result has been submitted to the academy.");
+    } catch (error) {
+      setQuizStatus("error", error.message || "Something went wrong. Please try again or contact the academy.");
+    } finally {
+      quizSubmitButton.disabled = false;
+      quizSubmitButton.textContent = "Submit Quiz";
+    }
+  });
+}

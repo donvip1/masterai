@@ -5,7 +5,7 @@
   "description": "EFF Master AI Tools Academy registration website",
   "scripts": {
     "dev": "node scripts/local-server.js",
-    "check": "node --check api/register.js && node --check scripts/local-server.js && node --check script.js && node scripts/check-apps-script.js"
+    "check": "node --check quiz-data.js && node --check api/register.js && node --check api/quiz.js && node --check scripts/local-server.js && node --check script.js && node scripts/check-apps-script.js"
   },
   "engines": {
     "node": ">=18"

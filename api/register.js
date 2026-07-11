@@ -16,6 +16,7 @@ const REQUIRED_FIELDS = [
 ];
 
 const PAID_PROOF_VALUE = "I have paid and uploaded proof";
+const ONBOARDING_GROUP_LINK = "https://chat.whatsapp.com/EiqRwnlAbTqFksCi6jqvS7?s=cl&p=a&ilr=0";
 const ALLOWED_SCREENSHOT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_SCREENSHOT_BASE64_LENGTH = 4_500_000;
 
@@ -196,7 +197,8 @@ module.exports = async function registerHandler(req, res) {
     return sendJson(res, 200, {
       ok: true,
       studentId: result.studentId || studentId,
-      courseFee: pricing.courseFee
+      courseFee: pricing.courseFee,
+      onboardingLink: payload.paymentReadiness === PAID_PROOF_VALUE ? ONBOARDING_GROUP_LINK : ""
     });
   } catch (error) {
     return sendJson(res, 502, {

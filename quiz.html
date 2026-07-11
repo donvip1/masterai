@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Take module objective tests for the EFF Master AI Tools Academy."
+    >
+    <title>Module Quiz | EFF Master AI Tools Academy</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html#top" aria-label="EFF Master AI Tools Academy home">
+        <span class="brand-mark">EFF</span>
+        <span>Master AI Tools Academy</span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="index.html#course">Course</a>
+        <a href="index.html#approach">Class Mode</a>
+        <a href="quiz.html">Quiz</a>
+        <a href="register.html">Register</a>
+        <a href="index.html#contact">Contact</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="quiz-section section-band standalone-page" id="quiz">
+        <div class="section-heading">
+          <p class="eyebrow">Module Quiz / Test</p>
+          <h1>Objective tests for each handbook module.</h1>
+          <p>
+            Students can submit module quiz results directly to the academy Google Sheet after each class.
+          </p>
+        </div>
+
+        <form class="quiz-form" id="quizForm" novalidate>
+          <input type="text" name="quizWebsite" class="honeypot" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+          <div class="quiz-top">
+            <div class="quiz-fields">
+              <label>
+                <span>Full Name *</span>
+                <input type="text" name="fullName" autocomplete="name" required>
+              </label>
+              <label>
+                <span>WhatsApp Number *</span>
+                <input type="tel" name="whatsappNumber" required>
+              </label>
+              <label>
+                <span>Email Address *</span>
+                <input type="email" name="emailAddress" autocomplete="email" required>
+              </label>
+              <label>
+                <span>Student ID</span>
+                <input type="text" name="studentId" placeholder="EFF-AI-2026-001">
+              </label>
+              <label class="quiz-module-select">
+                <span>Select Module *</span>
+                <select id="quizModule" name="moduleId" required>
+                  <option value="">Choose a module</option>
+                </select>
+              </label>
+            </div>
+
+            <aside class="quiz-summary" aria-live="polite">
+              <span>Current Test</span>
+              <strong id="quizModuleTitle">No module selected</strong>
+              <p id="quizModuleMeta">Choose a module to load its objective questions.</p>
+            </aside>
+          </div>
+
+          <div class="quiz-questions" id="quizQuestions"></div>
+
+          <div class="quiz-footer">
+            <button class="button primary quiz-submit" type="submit">Submit Quiz</button>
+            <div class="quiz-result" id="quizResult" aria-live="polite"></div>
+          </div>
+
+          <div class="form-status" id="quizStatus" role="status" aria-live="polite"></div>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>EFF Master AI Tools Academy</p>
+      <p>Learn · Create · Automate · Succeed</p>
+    </footer>
+
+    <script src="quiz-data.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

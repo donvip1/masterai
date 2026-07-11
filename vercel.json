@@ -2,6 +2,9 @@
   "functions": {
     "api/register.js": {
       "maxDuration": 10
+    },
+    "api/quiz.js": {
+      "maxDuration": 10
     }
   },
   "headers": [
