@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.env.local
+.vercel
+node_modules
+assets
+course-images
+screenshots
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

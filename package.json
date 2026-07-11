@@ -1,0 +1,13 @@
+{
+  "name": "eff-master-ai-tools-academy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EFF Master AI Tools Academy registration website",
+  "scripts": {
+    "dev": "node scripts/local-server.js",
+    "check": "node --check api/register.js && node --check scripts/local-server.js && node --check script.js && node scripts/check-apps-script.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
