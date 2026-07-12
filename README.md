@@ -16,27 +16,44 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Connect registrations and quizzes to Google Sheets and email
+## Connect registration to its Google Sheet
 
-1. Create a new Google Sheet for the academy.
+1. Use your existing registration Google Sheet, or create a new one.
 2. Open `Extensions -> Apps Script`.
 3. Paste the full contents of `google-apps-script/Code.gs`.
 4. Confirm `NOTIFICATION_EMAIL` is `viplearn4free@gmail.com`, or change it if you want responses sent elsewhere.
-5. If Apps Script gives `Cannot read properties of null (reading 'getSheetByName')`, copy the Sheet ID from the Google Sheet URL and paste it into `SPREADSHEET_ID`.
+5. Paste the registration Sheet ID into `SPREADSHEET_ID`.
 6. Save the script, then run `setupSheet` once and approve the permissions for Sheets, Gmail, and Drive.
 7. Click `Deploy -> New deployment`.
 8. Select `Web app`.
 9. Set `Execute as` to `Me`.
 10. Set access to `Anyone`.
-11. Deploy and copy the Web App URL.
-12. In Vercel, add an environment variable named `GOOGLE_SCRIPT_URL` with that Web App URL.
-13. Redeploy the Vercel project.
+11. Deploy and copy the Web App URL ending in `/exec`.
+12. In Vercel, add `GOOGLE_REGISTRATION_SCRIPT_URL` with that Web App URL.
+
+For compatibility, the registration endpoint can still use the older `GOOGLE_SCRIPT_URL`, but `GOOGLE_REGISTRATION_SCRIPT_URL` is preferred now.
+
+## Connect module quizzes to a separate Google Sheet
+
+1. Create a separate Google Sheet for module exams/quizzes.
+2. Open `Extensions -> Apps Script`.
+3. Paste the full contents of `google-apps-script/QuizCode.gs`.
+4. Confirm `NOTIFICATION_EMAIL` is `viplearn4free@gmail.com`, or change it if you want quiz notices sent elsewhere.
+5. Paste the module quiz Sheet ID into `SPREADSHEET_ID`.
+6. Save the script, then run `setupSheet` once and approve the permissions for Sheets and Gmail.
+7. Click `Deploy -> New deployment`.
+8. Select `Web app`.
+9. Set `Execute as` to `Me`.
+10. Set access to `Anyone`.
+11. Deploy and copy the Web App URL ending in `/exec`.
+12. In Vercel, add `GOOGLE_QUIZ_SCRIPT_URL` with that Web App URL.
+13. Redeploy the Vercel project after adding or changing environment variables.
 
 After this:
 
-- Registrations are written to the `Registrations` sheet.
-- Payment screenshots are stored in a Google Drive folder with the Drive link saved in the Sheet.
-- Module quiz/test submissions are written to the `Quiz Submissions` sheet.
+- Registrations are written to the registration Google Sheet.
+- Payment screenshots are stored in a Google Drive folder with the Drive link saved in the registration Sheet.
+- Module quiz/test submissions are written to the separate module quiz Google Sheet.
 - Admin emails are sent to `viplearn4free@gmail.com`.
 - Students receive registration and quiz confirmation emails.
 - The paid-students WhatsApp group link is shown and emailed only after a student selects `I have paid and uploaded proof` and uploads payment proof.
@@ -51,7 +68,8 @@ Import this folder into Vercel as a project. No build command is required. The s
 - `api/register.js` as the Vercel serverless function.
 - `api/quiz.js` as the quiz scoring and submission function.
 - `quiz-data.js` as the shared objective quiz bank for Modules 0-14.
-- `google-apps-script/Code.gs` for the Google Sheet and Gmail automation.
+- `google-apps-script/Code.gs` for registration Google Sheet and Gmail automation.
+- `google-apps-script/QuizCode.gs` for module quiz Google Sheet and Gmail automation.
 
 ## Notes
 

@@ -138,12 +138,12 @@ module.exports = async function registerHandler(req, res) {
     return sendJson(res, 405, { ok: false, message: "Method not allowed." });
   }
 
-  const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
+  const scriptUrl = process.env.GOOGLE_REGISTRATION_SCRIPT_URL || process.env.GOOGLE_SCRIPT_URL;
 
   if (!scriptUrl) {
     return sendJson(res, 503, {
       ok: false,
-      message: "Registration endpoint is not connected yet. Add GOOGLE_SCRIPT_URL in Vercel after deploying the Google Apps Script."
+      message: "Registration endpoint is not connected yet. Add GOOGLE_REGISTRATION_SCRIPT_URL in Vercel after deploying the registration Google Apps Script."
     });
   }
 
@@ -203,7 +203,7 @@ module.exports = async function registerHandler(req, res) {
   } catch (error) {
     return sendJson(res, 502, {
       ok: false,
-      message: "Could not reach Google Apps Script. Check GOOGLE_SCRIPT_URL and deployment access."
+      message: "Could not reach the registration Google Apps Script. Check GOOGLE_REGISTRATION_SCRIPT_URL and deployment access."
     });
   }
 };

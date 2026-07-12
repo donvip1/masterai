@@ -108,12 +108,12 @@ module.exports = async function quizHandler(req, res) {
     return sendJson(res, 405, { ok: false, message: "Method not allowed." });
   }
 
-  const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
+  const scriptUrl = process.env.GOOGLE_QUIZ_SCRIPT_URL;
 
   if (!scriptUrl) {
     return sendJson(res, 503, {
       ok: false,
-      message: "Quiz endpoint is not connected yet. Add GOOGLE_SCRIPT_URL in Vercel after deploying the Google Apps Script."
+      message: "Quiz endpoint is not connected yet. Add GOOGLE_QUIZ_SCRIPT_URL in Vercel after deploying the module quiz Google Apps Script."
     });
   }
 
@@ -184,7 +184,7 @@ module.exports = async function quizHandler(req, res) {
   } catch (error) {
     return sendJson(res, 502, {
       ok: false,
-      message: "Could not reach Google Apps Script. Check GOOGLE_SCRIPT_URL and deployment access."
+      message: "Could not reach the module quiz Google Apps Script. Check GOOGLE_QUIZ_SCRIPT_URL and deployment access."
     });
   }
 };

@@ -1,7 +1,6 @@
 const CONFIG = {
   SPREADSHEET_ID: "",
   SHEET_NAME: "Registrations",
-  QUIZ_SHEET_NAME: "Quiz Submissions",
   NOTIFICATION_EMAIL: "viplearn4free@gmail.com",
   ACADEMY_NAME: "EFF Master AI Tools Academy",
   PAYMENT_SCREENSHOT_FOLDER: "EFF Master AI Tools Academy Payment Screenshots",
@@ -11,8 +10,7 @@ const CONFIG = {
   ACCOUNT_HOLDER: "Phiip Awazie",
   BASE_FEE: 10000,
   FOUR_COURSE_FEE: 15000,
-  EXTRA_COURSE_FEE: 3000,
-  PASS_MARK: 70
+  EXTRA_COURSE_FEE: 3000
 };
 
 const HEADERS = [
@@ -43,26 +41,10 @@ const HEADERS = [
   "Page URL"
 ];
 
-const QUIZ_HEADERS = [
-  "Timestamp",
-  "Student ID",
-  "Full Name",
-  "WhatsApp Number",
-  "Email Address",
-  "Module ID",
-  "Module Title",
-  "Score",
-  "Total Questions",
-  "Percentage",
-  "Result",
-  "Answers",
-  "Page URL"
-];
-
 function doGet() {
   return jsonResponse({
     ok: true,
-    message: CONFIG.ACADEMY_NAME + " registration and quiz endpoint is live."
+    message: CONFIG.ACADEMY_NAME + " registration endpoint is live."
   });
 }
 
@@ -73,10 +55,6 @@ function doPost(e) {
     lock.waitLock(10000);
 
     try {
-      if (payload.submissionType === "quiz") {
-        return handleQuizSubmission(payload);
-      }
-
       return handleRegistrationSubmission(payload);
     } finally {
       lock.releaseLock();
@@ -91,21 +69,12 @@ function doPost(e) {
 
 function setupSheet() {
   const sheet = getOrCreateSheet();
-  const quizSheet = getOrCreateQuizSheet();
 
   ensureHeaders(sheet);
   sheet.setFrozenRows(1);
   sheet.autoResizeColumns(1, HEADERS.length);
   sheet.getRange(1, 1, 1, HEADERS.length)
     .setBackground("#16256b")
-    .setFontColor("#ffffff")
-    .setFontWeight("bold");
-
-  ensureQuizHeaders(quizSheet);
-  quizSheet.setFrozenRows(1);
-  quizSheet.autoResizeColumns(1, QUIZ_HEADERS.length);
-  quizSheet.getRange(1, 1, 1, QUIZ_HEADERS.length)
-    .setBackground("#0f9488")
     .setFontColor("#ffffff")
     .setFontWeight("bold");
 }
@@ -154,35 +123,6 @@ function handleRegistrationSubmission(payload) {
   });
 }
 
-function handleQuizSubmission(payload) {
-  const sheet = getOrCreateQuizSheet();
-  const percentage = Number(payload.percentage || 0);
-  const result = payload.resultStatus || (percentage >= CONFIG.PASS_MARK ? "Passed" : "Needs Review");
-  const row = [
-    new Date(),
-    payload.studentId || "",
-    payload.fullName || "",
-    payload.whatsappNumber || "",
-    payload.emailAddress || "",
-    payload.moduleId || "",
-    payload.moduleTitle || "",
-    payload.score || 0,
-    payload.total || 0,
-    percentage + "%",
-    result,
-    quizAnswersToText(payload.answers),
-    payload.pageUrl || ""
-  ];
-
-  sheet.appendRow(row);
-  sendQuizAdminEmail(payload, result);
-  sendQuizStudentEmail(payload, result);
-
-  return jsonResponse({
-    ok: true
-  });
-}
-
 function getOrCreateSheet() {
   const spreadsheet = getSpreadsheet();
   let sheet = spreadsheet.getSheetByName(CONFIG.SHEET_NAME);
@@ -196,19 +136,6 @@ function getOrCreateSheet() {
   return sheet;
 }
 
-function getOrCreateQuizSheet() {
-  const spreadsheet = getSpreadsheet();
-  let sheet = spreadsheet.getSheetByName(CONFIG.QUIZ_SHEET_NAME);
-
-  if (!sheet) {
-    sheet = spreadsheet.insertSheet(CONFIG.QUIZ_SHEET_NAME);
-  }
-
-  ensureQuizHeaders(sheet);
-
-  return sheet;
-}
-
 function getSpreadsheet() {
   if (CONFIG.SPREADSHEET_ID) {
     return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
@@ -217,7 +144,7 @@ function getSpreadsheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
   if (!spreadsheet) {
-    throw new Error("No spreadsheet is connected. Open your Google Sheet, copy its ID from the URL, and paste it into CONFIG.SPREADSHEET_ID in Code.gs.");
+    throw new Error("No spreadsheet is connected. Open your registration Google Sheet, copy its ID from the URL, and paste it into CONFIG.SPREADSHEET_ID in Code.gs.");
   }
 
   return spreadsheet;
@@ -225,11 +152,6 @@ function getSpreadsheet() {
 
 function ensureHeaders(sheet) {
   sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
-  sheet.setFrozenRows(1);
-}
-
-function ensureQuizHeaders(sheet) {
-  sheet.getRange(1, 1, 1, QUIZ_HEADERS.length).setValues([QUIZ_HEADERS]);
   sheet.setFrozenRows(1);
 }
 
@@ -335,19 +257,6 @@ function arrayToText(value) {
   return value || "";
 }
 
-function quizAnswersToText(answers) {
-  if (!Array.isArray(answers)) {
-    return "";
-  }
-
-  return answers.map(function(answer, index) {
-    return (index + 1) + ". " + (answer.question || "") + "\n" +
-      "Selected: " + (answer.selectedAnswer || "") + "\n" +
-      "Correct: " + (answer.correctAnswer || "") + "\n" +
-      "Result: " + (answer.correct ? "Correct" : "Wrong");
-  }).join("\n\n");
-}
-
 function formatNaira(amount) {
   return "₦" + Number(amount || 0).toLocaleString("en-NG");
 }
@@ -397,42 +306,6 @@ function sendStudentEmail(payload, studentId, pricing, screenshotUrl) {
     paidGroupMessage +
     "We will review your application and contact you via WhatsApp or email with payment and onboarding instructions.\n\n" +
     "Welcome to EFF Master AI Tools Academy.";
-
-  MailApp.sendEmail(payload.emailAddress, subject, body);
-}
-
-function sendQuizAdminEmail(payload, result) {
-  const subject = "New Module Quiz Submission - " + CONFIG.ACADEMY_NAME;
-  const body =
-    "A student has submitted a module quiz.\n\n" +
-    "Full Name: " + (payload.fullName || "") + "\n" +
-    "Student ID: " + (payload.studentId || "Not provided") + "\n" +
-    "WhatsApp: " + (payload.whatsappNumber || "") + "\n" +
-    "Email: " + (payload.emailAddress || "") + "\n" +
-    "Module: " + (payload.moduleTitle || payload.moduleId || "") + "\n" +
-    "Score: " + (payload.score || 0) + "/" + (payload.total || 0) + "\n" +
-    "Percentage: " + (payload.percentage || 0) + "%\n" +
-    "Result: " + result + "\n\n" +
-    "Answers:\n" + quizAnswersToText(payload.answers);
-
-  MailApp.sendEmail(CONFIG.NOTIFICATION_EMAIL, subject, body);
-}
-
-function sendQuizStudentEmail(payload, result) {
-  if (!payload.emailAddress) {
-    return;
-  }
-
-  const subject = "Quiz result received - " + CONFIG.ACADEMY_NAME;
-  const body =
-    "Hello " + (payload.fullName || "student") + ",\n\n" +
-    "Your module quiz has been received.\n\n" +
-    "Module: " + (payload.moduleTitle || payload.moduleId || "") + "\n" +
-    "Score: " + (payload.score || 0) + "/" + (payload.total || 0) + "\n" +
-    "Percentage: " + (payload.percentage || 0) + "%\n" +
-    "Result: " + result + "\n\n" +
-    "Keep practicing and follow your instructor's module review guidance.\n\n" +
-    "EFF Master AI Tools Academy";
 
   MailApp.sendEmail(payload.emailAddress, subject, body);
 }
