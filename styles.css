@@ -363,6 +363,105 @@ a {
   font-size: 1.05rem;
 }
 
+.announcements {
+  background: #fff;
+}
+
+.announcement-board {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(340px, 1.05fr);
+  gap: 18px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.announcement-card,
+.class-days-card {
+  min-height: 260px;
+  padding: clamp(22px, 3vw, 32px);
+  border-radius: var(--radius);
+}
+
+.announcement-card {
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-left: 6px solid var(--blue);
+  background: #f0f6ff;
+}
+
+.class-days-card {
+  border: 1px solid rgba(22, 37, 107, 0.16);
+  background: var(--navy);
+  color: #fff;
+}
+
+.announcement-card span,
+.class-days-card span,
+.registration-notice span {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.announcement-card span {
+  color: var(--blue);
+}
+
+.class-days-card span {
+  color: var(--orange);
+}
+
+.announcement-card h3,
+.class-days-card h3 {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.08;
+}
+
+.announcement-card h3 {
+  color: var(--navy);
+}
+
+.class-days-card h3 {
+  color: #fff;
+}
+
+.announcement-card p,
+.class-days-card p {
+  margin: 16px 0 0;
+  font-size: 1.05rem;
+}
+
+.announcement-card p {
+  color: var(--muted);
+}
+
+.class-days-card p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.class-day-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.class-day-list strong {
+  display: grid;
+  place-items: center;
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.94rem;
+  text-align: center;
+}
+
 .module-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -801,6 +900,33 @@ a {
   border-radius: var(--radius);
   background: #fff;
   box-shadow: var(--shadow);
+}
+
+.registration-notice {
+  max-width: 1060px;
+  margin: 0 auto 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(245, 158, 11, 0.34);
+  border-left: 6px solid var(--orange);
+  border-radius: var(--radius);
+  background: #fff8eb;
+}
+
+.registration-notice span {
+  margin-bottom: 6px;
+  color: #9a5a00;
+}
+
+.registration-notice strong {
+  display: block;
+  color: var(--navy);
+  font-size: clamp(1.18rem, 2vw, 1.5rem);
+  line-height: 1.25;
+}
+
+.registration-notice p {
+  margin: 8px 0 0;
+  color: var(--muted);
 }
 
 .form-layout {
@@ -1257,9 +1383,14 @@ input[type="checkbox"] {
   }
 
   .module-grid,
+  .announcement-board,
   .roadmap-board,
   .contact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .announcement-board {
+    grid-template-columns: 1fr;
   }
 
   .roadmap-board article::after {
@@ -1352,6 +1483,7 @@ input[type="checkbox"] {
   .hero-facts,
   .module-grid,
   .stack-grid,
+  .class-day-list,
   .roadmap-board,
   .lesson-system,
     .contact-grid,
