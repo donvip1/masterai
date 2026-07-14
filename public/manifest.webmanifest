@@ -1,0 +1,36 @@
+{
+  "name": "Everything for Free Academy",
+  "short_name": "EFF Academy",
+  "description": "Student app for Everything for Free Academy classes, announcements, quizzes, and offline progress.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16256b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Student Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard"
+    },
+    {
+      "name": "Module Quiz",
+      "short_name": "Quiz",
+      "url": "/quiz"
+    },
+    {
+      "name": "Register",
+      "short_name": "Register",
+      "url": "/register"
+    }
+  ]
+}

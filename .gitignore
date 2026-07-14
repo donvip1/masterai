@@ -3,6 +3,8 @@
 .env.local
 .vercel
 node_modules
+.next
+out
 assets
 course-images
 screenshots

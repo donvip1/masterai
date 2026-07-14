@@ -12,7 +12,7 @@ const height = 720;
 const fps = 30;
 
 const voiceover = [
-  "Welcome to EFF Master AI Tools Academy.",
+  "Welcome to Everything for Free Academy.",
   "In this video, I will show you how to register for the Batch Two AI training program.",
   "First, open the academy website. On the home page, tap the Apply Now or Register button.",
   "The registration form will open on a separate page. Start with your personal information. Enter your full name, gender, phone number, WhatsApp number, email address, state, country, and occupation.",
@@ -24,13 +24,13 @@ const voiceover = [
   "Finally, write what you hope to achieve after the training, accept the agreement, and submit your registration.",
   "Once submitted, you will receive your student ID and further instructions by email or WhatsApp.",
   "Paid students will also receive the WhatsApp class group link.",
-  "Welcome to EFF Master AI Tools Academy."
+  "Welcome to Everything for Free Academy."
 ].join(" ");
 
 const slides = [
   {
     duration: 9,
-    title: "EFF Master AI Tools Academy",
+    title: "Everything for Free Academy",
     eyebrow: "Batch 2 Registration",
     body: "A 30-day practical AI training program for students, creators, business owners, and professionals.",
     bullets: ["Live Google Meet", "WhatsApp Community", "Starts from N10,000"],
@@ -81,7 +81,7 @@ const slides = [
   {
     duration: 13,
     title: "Register today",
-    body: "EFF Master AI Tools Academy helps you learn, create, automate, and earn with practical AI tools.",
+    body: "Everything for Free Academy helps you learn, create, automate, and earn with practical AI tools.",
     bullets: ["Apply online", "Upload payment proof", "Join the next batch"],
     mockup: "cta"
   }
@@ -131,7 +131,7 @@ function addBaseLayout(filters, slide, index) {
   drawBox(filters, 0, 0, width, 90, "0x0F9488@0.72", "fill");
   drawBox(filters, 76, 54, 86, 86, "0xF59E0B", "fill");
   drawText(filters, `brand-${index}`, "EFF", 96, 83, 28, "0x111827");
-  drawText(filters, `brand-name-${index}`, "Master AI Tools Academy", 184, 53, 30, "0xFFFFFF");
+  drawText(filters, `brand-name-${index}`, "Everything for Free Academy", 184, 53, 30, "0xFFFFFF");
   drawText(filters, `brand-tag-${index}`, "Learn - Create - Automate - Earn", 185, 91, 18, "0xD9F8F2");
 
   if (slide.eyebrow) {

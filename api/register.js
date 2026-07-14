@@ -16,6 +16,7 @@ const REQUIRED_FIELDS = [
 ];
 
 const PAID_PROOF_VALUE = "I have paid and uploaded proof";
+const ACADEMY_NAME = "Everything for Free Academy";
 const ONBOARDING_GROUP_LINK = "https://chat.whatsapp.com/EiqRwnlAbTqFksCi6jqvS7?s=cl&p=a&ilr=0";
 const ALLOWED_SCREENSHOT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_SCREENSHOT_BASE64_LENGTH = 4_500_000;
@@ -143,7 +144,7 @@ module.exports = async function registerHandler(req, res) {
   if (!scriptUrl) {
     return sendJson(res, 503, {
       ok: false,
-      message: "Registration endpoint is not connected yet. Add GOOGLE_REGISTRATION_SCRIPT_URL in Vercel after deploying the registration Google Apps Script."
+      message: `${ACADEMY_NAME} registration endpoint is not connected yet. Add GOOGLE_REGISTRATION_SCRIPT_URL in Vercel after deploying the registration Google Apps Script.`
     });
   }
 

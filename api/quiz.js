@@ -1,5 +1,6 @@
 const quizModules = require("../quiz-data");
 
+const ACADEMY_NAME = "Everything for Free Academy";
 const REQUIRED_FIELDS = ["fullName", "whatsappNumber", "emailAddress", "moduleId"];
 const PASS_MARK = 70;
 
@@ -113,7 +114,7 @@ module.exports = async function quizHandler(req, res) {
   if (!scriptUrl) {
     return sendJson(res, 503, {
       ok: false,
-      message: "Quiz endpoint is not connected yet. Add GOOGLE_QUIZ_SCRIPT_URL in Vercel after deploying the module quiz Google Apps Script."
+      message: `${ACADEMY_NAME} quiz endpoint is not connected yet. Add GOOGLE_QUIZ_SCRIPT_URL in Vercel after deploying the module quiz Google Apps Script.`
     });
   }
 

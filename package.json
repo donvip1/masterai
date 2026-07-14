@@ -1,13 +1,20 @@
 {
-  "name": "eff-master-ai-tools-academy",
+  "name": "everything-for-free-academy",
   "version": "1.0.0",
   "private": true,
-  "description": "EFF Master AI Tools Academy registration website",
+  "description": "Everything for Free Academy website and student app foundation",
   "scripts": {
-    "dev": "node scripts/local-server.js",
-    "check": "node --check quiz-data.js && node --check api/register.js && node --check api/quiz.js && node --check scripts/local-server.js && node --check script.js && node scripts/check-apps-script.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "check": "node --check quiz-data.js && node --check public/service-worker.js && node --check api/register.js && node --check api/quiz.js && node --check next.config.js && node scripts/check-apps-script.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

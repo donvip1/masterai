@@ -2,8 +2,8 @@ const CONFIG = {
   SPREADSHEET_ID: "1ZyoIUgUphrqp0gUeL49wPOWnHtktSwNFvhgh9oxcWnw",
   SHEET_NAME: "Registrations",
   NOTIFICATION_EMAIL: "viplearn4free@gmail.com",
-  ACADEMY_NAME: "EFF Master AI Tools Academy",
-  PAYMENT_SCREENSHOT_FOLDER: "EFF Master AI Tools Academy Payment Screenshots",
+  ACADEMY_NAME: "Everything for Free Academy",
+  PAYMENT_SCREENSHOT_FOLDER: "Everything for Free Academy Payment Screenshots",
   WHATSAPP_GROUP_LINK: "https://chat.whatsapp.com/EiqRwnlAbTqFksCi6jqvS7?s=cl&p=a&ilr=0",
   BANK_NAME: "Opay",
   ACCOUNT_NUMBER: "8166563757",
@@ -305,7 +305,7 @@ function sendStudentEmail(payload, studentId, pricing, screenshotUrl) {
     "Class Mode: Live Google Meet + WhatsApp Community\n\n" +
     paidGroupMessage +
     "We will review your application and contact you via WhatsApp or email with payment and onboarding instructions.\n\n" +
-    "Welcome to EFF Master AI Tools Academy.";
+    "Welcome to Everything for Free Academy.";
 
   MailApp.sendEmail(payload.emailAddress, subject, body);
 }

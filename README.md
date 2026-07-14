@@ -1,12 +1,19 @@
-# EFF Master AI Tools Academy
+# Everything for Free Academy
 
-Simple Vercel-ready website for Batch 2 of the EFF Master AI Tools Academy.
+Next.js website and student-app foundation for `effacademy.xyz`.
 
-The site is split into three public pages:
+EFF means **Everything for Free Academy**. The current program is the AI Tools Academy: registration, class schedule, quizzes, student dashboard progress, and a future-ready mobile app path.
 
-- `index.html` - landing page with course overview and CTA buttons.
-- `register.html` - student registration form.
-- `quiz.html` - module quiz/test submission page.
+## Structure
+
+- `app/` - Next.js App Router pages.
+- `components/` - reusable React UI and client-side flows.
+- `lib/academyData.js` - shared academy data for class days, announcements, modules, and future backend providers.
+- `pages/api/` - Next API wrappers for the existing low-cost backend.
+- `api/` - current registration and quiz handlers that forward to Google Apps Script.
+- `public/manifest.webmanifest`, `public/service-worker.js`, `public/app-icon.svg` - PWA install/offline foundation.
+- `google-apps-script/` - Google Sheets, Drive, and email automation.
+- `quiz-data.js` - objective quiz bank used by the quiz API and React quiz page.
 
 ## Local preview
 
@@ -15,6 +22,30 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+## Production domain
+
+Use `effacademy.xyz` as the public domain in Vercel or your hosting provider.
+
+The app metadata already uses:
+
+- Site name: `Everything for Free Academy`
+- Domain: `effacademy.xyz`
+- Short name: `EFF Academy`
+
+## Mobile app path
+
+The site is now built with React through Next.js, which gives a cleaner path to Android and iOS later.
+
+Current path:
+
+- Next.js web app and PWA now.
+- Local dashboard progress through `localStorage` now.
+- Google Apps Script remains the no-cost backend for registration and quiz submission now.
+- Supabase is reserved in `lib/academyData.js` for later, but it is not active and costs nothing now.
+- Future Android/iOS can use Expo or React Native and reuse the same data model, route ideas, API payloads, and student-progress logic.
+
+When the academy starts making enough money, Supabase can be added for student login, cloud progress sync, payments, certificates, announcements, and admin dashboard features.
 
 ## Connect registration to its Google Sheet
 
@@ -47,42 +78,13 @@ For compatibility, the registration endpoint can still use the older `GOOGLE_SCR
 10. Set access to `Anyone`.
 11. Deploy and copy the Web App URL ending in `/exec`.
 12. In Vercel, add `GOOGLE_QUIZ_SCRIPT_URL` with that Web App URL.
-13. Redeploy the Vercel project after adding or changing environment variables.
+13. Redeploy after adding or changing environment variables.
 
-After this:
+## Checks
 
-- Registrations are written to the registration Google Sheet.
-- Payment screenshots are stored in a Google Drive folder with the Drive link saved in the registration Sheet.
-- Module quiz/test submissions are written to the separate module quiz Google Sheet.
-- Admin emails are sent to `viplearn4free@gmail.com`.
-- Students receive registration and quiz confirmation emails.
-- The paid-students WhatsApp group link is shown and emailed only after a student selects `I have paid and uploaded proof` and uploads payment proof.
+```bash
+npm run check
+npm run build
+```
 
-## Vercel deployment
-
-Import this folder into Vercel as a project. No build command is required. The site uses:
-
-- `index.html`, `styles.css`, and `script.js` for the frontend.
-- `register.html` for the registration form page.
-- `quiz.html` for the module quiz page.
-- `api/register.js` as the Vercel serverless function.
-- `api/quiz.js` as the quiz scoring and submission function.
-- `quiz-data.js` as the shared objective quiz bank for Modules 0-14.
-- `google-apps-script/Code.gs` for registration Google Sheet and Gmail automation.
-- `google-apps-script/QuizCode.gs` for module quiz Google Sheet and Gmail automation.
-
-## Notes
-
-The current form matches the requested registration sections:
-
-- Personal Information
-- About You
-- Learning Interests
-- Learning Device
-- Class Preference
-- Commitment
-- Payment
-- Expectations
-- Agreement
-
-The quiz section includes one objective test for each handbook module. Each module currently has 5 questions, which keeps every test below the requested 10-question limit.
+The build verifies the Next.js app. The check script validates the core CommonJS scripts and Apps Script syntax.

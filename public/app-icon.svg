@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Everything for Free Academy</title>
+  <desc id="desc">Academy app icon with EFF initials.</desc>
+  <rect width="512" height="512" rx="96" fill="#16256b"/>
+  <path d="M96 362V150h157v48H154v36h88v45h-88v83H96Zm188 0V150h145v48h-87v42h76v46h-76v76h-58Z" fill="#ffffff"/>
+  <circle cx="386" cy="354" r="45" fill="#f59e0b"/>
+  <path d="M366 355l16 16 31-39" fill="none" stroke="#111827" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

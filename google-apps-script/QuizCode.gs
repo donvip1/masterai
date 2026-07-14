@@ -2,7 +2,7 @@ const CONFIG = {
   SPREADSHEET_ID: "1EDxb3GMWbtvhajmnHl15tsVm9wUFzGLwRzVEP394jBk",
   SHEET_NAME: "Module Quiz Submissions",
   NOTIFICATION_EMAIL: "viplearn4free@gmail.com",
-  ACADEMY_NAME: "EFF Master AI Tools Academy",
+  ACADEMY_NAME: "Everything for Free Academy",
   PASS_MARK: 70
 };
 
@@ -173,7 +173,7 @@ function sendQuizStudentEmail(payload, result) {
     "Percentage: " + (payload.percentage || 0) + "%\n" +
     "Result: " + result + "\n\n" +
     "Keep practicing and follow your instructor's module review guidance.\n\n" +
-    "EFF Master AI Tools Academy";
+    "Everything for Free Academy";
 
   MailApp.sendEmail(payload.emailAddress, subject, body);
 }

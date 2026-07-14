@@ -1,25 +1,10 @@
 {
   "functions": {
-    "api/register.js": {
+    "pages/api/register.js": {
       "maxDuration": 10
     },
-    "api/quiz.js": {
+    "pages/api/quiz.js": {
       "maxDuration": 10
     }
-  },
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
-      ]
-    }
-  ]
+  }
 }
