@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "check": "node --check quiz-data.js && node --check public/service-worker.js && node --check api/register.js && node --check api/quiz.js && node --check next.config.js && node scripts/check-apps-script.js"
+    "check": "node --check quiz-data.js && node --check public/service-worker.js && node --check lib/server/register.js && node --check lib/server/quiz.js && node --check next.config.js && node scripts/check-apps-script.js"
   },
   "engines": {
     "node": ">=18"

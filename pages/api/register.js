@@ -1,3 +1,3 @@
-import registerHandler from "../../api/register";
+import registerHandler from "../../lib/server/register";
 
 export default registerHandler;
