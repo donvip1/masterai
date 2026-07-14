@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  blobToDataUrl,
+  createModuleReport,
+  createWhatsAppMessage
+} from "../lib/moduleReport";
+import {
   clearStudentSession,
   readStudentSession,
   writeStudentSession
@@ -48,6 +53,8 @@ export default function QuizClient() {
   const [answers, setAnswers] = useState({});
   const [status, setStatus] = useState({ type: "", message: "" });
   const [result, setResult] = useState(null);
+  const [moduleReport, setModuleReport] = useState(null);
+  const [reportStatus, setReportStatus] = useState({ type: "", message: "" });
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -66,6 +73,14 @@ export default function QuizClient() {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (moduleReport?.previewUrl) {
+        URL.revokeObjectURL(moduleReport.previewUrl);
+      }
+    };
+  }, [moduleReport?.previewUrl]);
 
   async function loadQuiz(studentId, options = {}) {
     setLoading(true);
@@ -112,10 +127,17 @@ export default function QuizClient() {
 
   function signOut() {
     clearStudentSession();
+
+    if (moduleReport?.previewUrl) {
+      URL.revokeObjectURL(moduleReport.previewUrl);
+    }
+
     setSession(null);
     setQuizData(null);
     setAnswers({});
     setResult(null);
+    setModuleReport(null);
+    setReportStatus({ type: "", message: "" });
   }
 
   const currentModule = quizData?.module || null;
@@ -143,6 +165,126 @@ export default function QuizClient() {
     }
 
     return "";
+  }
+
+  async function generateAndStoreReport(reportData) {
+    if (!reportData) {
+      setReportStatus({
+        type: "error",
+        message: "The quiz was saved, but report details were not returned by the server."
+      });
+      return;
+    }
+
+    setReportStatus({
+      type: "success",
+      message: "Generating your module task completion report..."
+    });
+
+    try {
+      const generated = await createModuleReport(reportData);
+      const previewUrl = URL.createObjectURL(generated.blob);
+      const reportWithMotivation = {
+        ...reportData,
+        motivation: generated.motivation
+      };
+
+      setModuleReport((current) => {
+        if (current?.previewUrl) {
+          URL.revokeObjectURL(current.previewUrl);
+        }
+
+        return {
+          ...generated,
+          previewUrl,
+          reportData: reportWithMotivation,
+          remote: null
+        };
+      });
+      setReportStatus({
+        type: "success",
+        message: "Your PNG is ready. Saving the PNG and PDF copies to the academy records..."
+      });
+
+      try {
+        const imageData = await blobToDataUrl(generated.blob);
+        const response = await fetch("/api/module-report", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            ...reportWithMotivation,
+            imageData,
+            reportWebsite: "",
+            pageUrl: window.location.href
+          })
+        });
+        const savedReport = await response.json().catch(() => ({}));
+
+        if (!response.ok || !savedReport.ok || !savedReport.report) {
+          throw new Error(savedReport.message || "The academy copy could not be stored.");
+        }
+
+        setModuleReport((current) => current ? {
+          ...current,
+          remote: savedReport.report
+        } : current);
+        setReportStatus({
+          type: "success",
+          message: savedReport.report.emailStatus === "Sent"
+            ? "Report generated, stored in Drive, and emailed successfully."
+            : "Report generated and stored in Drive. The email delivery status is shown below."
+        });
+      } catch (error) {
+        setReportStatus({
+          type: "warning",
+          message: error.message || "The academy copy could not be stored. Your local PNG is still ready."
+        });
+      }
+    } catch (error) {
+      setReportStatus({
+        type: "error",
+        message: error.message || "The quiz was saved, but the report image could not be generated."
+      });
+    }
+  }
+
+  async function shareReport() {
+    if (!moduleReport) {
+      return;
+    }
+
+    const shareText = createWhatsAppMessage(
+      moduleReport.reportData,
+      moduleReport.remote?.pngDownloadUrl || ""
+    );
+
+    try {
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [moduleReport.file] })
+      ) {
+        await navigator.share({
+          title: "Module Task Completion Report",
+          text: shareText,
+          files: [moduleReport.file]
+        });
+        return;
+      }
+
+      const whatsappUrl = moduleReport.remote?.whatsappUrl ||
+        `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        setReportStatus({
+          type: "warning",
+          message: "The share window could not be opened. Download the report and share the PNG directly."
+        });
+      }
+    }
   }
 
   async function submitQuiz(event) {
@@ -193,7 +335,10 @@ export default function QuizClient() {
           ? "Quiz passed. Your next module opens after 48 hours."
           : "Quiz submitted. Correction access opens after 30 minutes."
       });
-      await loadQuiz(session.studentId, { preserveStatus: true });
+      await Promise.all([
+        loadQuiz(session.studentId, { preserveStatus: true }),
+        generateAndStoreReport(apiResult.report)
+      ]);
     } catch (error) {
       setStatus({
         type: "error",
@@ -306,6 +451,100 @@ export default function QuizClient() {
               )}
             </div>
           </div>
+
+          {moduleReport && (
+            <section className="module-report-panel" aria-labelledby="module-report-title">
+              <div className="module-report-heading">
+                <div>
+                  <span>Automatic Progress Report</span>
+                  <h2 id="module-report-title">Module task completion report</h2>
+                  <p>This acknowledges one module attempt. It is not a graduation certificate.</p>
+                </div>
+                <strong className={moduleReport.reportData.passed ? "report-pass" : "report-review"}>
+                  {moduleReport.reportData.passed ? "Passed" : "Needs Improvement"}
+                </strong>
+              </div>
+
+              <div className="module-report-layout">
+                <a
+                  className="module-report-preview"
+                  href={moduleReport.previewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="View the full module task completion report"
+                >
+                  <img
+                    src={moduleReport.previewUrl}
+                    alt={`Module task completion report for ${moduleReport.reportData.moduleName}`}
+                  />
+                </a>
+
+                <div className="module-report-actions">
+                  <a
+                    className="button primary"
+                    href={moduleReport.previewUrl}
+                    download={moduleReport.fileName}
+                  >
+                    Download Report
+                  </a>
+                  <a
+                    className="button secondary"
+                    href={moduleReport.previewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View Report
+                  </a>
+                  <button className="button ghost-button" type="button" onClick={shareReport}>
+                    Share Report
+                  </button>
+
+                  {moduleReport.remote?.pdfDownloadUrl && (
+                    <a
+                      className="button ghost-button"
+                      href={moduleReport.remote.pdfDownloadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Download PDF
+                    </a>
+                  )}
+
+                  {moduleReport.remote?.whatsappUrl && (
+                    <a
+                      className="button whatsapp-button"
+                      href={moduleReport.remote.whatsappUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Share to WhatsApp
+                    </a>
+                  )}
+
+                  <dl className="module-report-meta">
+                    <div>
+                      <dt>File</dt>
+                      <dd>{moduleReport.fileName}</dd>
+                    </div>
+                    <div>
+                      <dt>Drive status</dt>
+                      <dd>{moduleReport.remote?.status || "Saving..."}</dd>
+                    </div>
+                    <div>
+                      <dt>Email status</dt>
+                      <dd>{moduleReport.remote?.emailStatus || "Waiting for Drive..."}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {reportStatus.message && (
+            <div className={`form-status is-visible ${reportStatus.type}`} role="status" aria-live="polite">
+              {reportStatus.message}
+            </div>
+          )}
         </>
       )}
 

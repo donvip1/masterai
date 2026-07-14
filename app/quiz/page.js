@@ -15,7 +15,7 @@ export default function QuizPage() {
           <div className="section-heading">
             <p className="eyebrow">Student Module Assessment</p>
             <h1>Your current module quiz and performance.</h1>
-            <p>Only signed-in students can access quizzes. Student details are loaded from the academy database and each module follows the required correction and cooldown schedule.</p>
+            <p>Only signed-in students can access quizzes. Student details are loaded from the academy database, each module follows the required correction and cooldown schedule, and every saved attempt generates a downloadable module progress report.</p>
           </div>
 
           <QuizClient />

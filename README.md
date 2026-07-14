@@ -14,6 +14,7 @@ EFF means **Everything for Free Academy**. The current program is the AI Tools A
 - `public/manifest.webmanifest`, `public/service-worker.js`, `public/app-icon.svg` - PWA install/offline foundation.
 - `google-apps-script/` - Google Sheets, Drive, and email automation.
 - `quiz-data.js` - objective quiz bank used by the quiz API and React quiz page.
+- `public/module-task-completion-template.jpeg` - master artwork used for automatic module reports.
 
 ## Local preview
 
@@ -93,6 +94,33 @@ The quiz script now:
 - stores quiz cycles and the next available attempt time.
 
 After replacing `QuizCode.gs`, run `setupSheet` once so the `Cycle` and `Next Attempt At` columns are added, then create a new Web App deployment version.
+
+## Connect automatic module reports
+
+Module reports use a separate Apps Script deployment so the existing registration and quiz endpoints remain unchanged.
+
+1. Create a third Apps Script project. It can be opened from the quiz Google Sheet.
+2. Paste the full contents of `google-apps-script/ReportCode.gs`.
+3. Confirm the quiz and registration spreadsheet IDs in `REPORT_CONFIG`.
+4. Save the script, then run `setupReportSheet` once.
+5. Approve the requested Sheets, Drive, and email permissions.
+6. Deploy it as a Web App with `Execute as: Me` and access set to `Anyone`.
+7. Copy its Web App URL ending in `/exec`.
+8. Add `GOOGLE_REPORT_SCRIPT_URL` in Vercel with that URL.
+9. Redeploy the Next.js project.
+
+After a saved quiz attempt, the browser renders the supplied template as a high-quality PNG. The report service then:
+
+- verifies the report values against the latest saved quiz row;
+- creates PNG and PDF copies;
+- stores them in `Mastering AI Tools/Student Reports/Module N`;
+- appends completion metadata to the `Module Reports` Sheet;
+- emails both files to the student's registered email address;
+- returns Drive download and WhatsApp sharing links.
+
+The `WhatsApp Share URL` column is the instructor's current sharing control until a separate authenticated instructor dashboard is added.
+
+If the report deployment is temporarily unavailable, the saved quiz is not affected and the student can still download the locally generated PNG.
 
 ## Checks
 
