@@ -8,6 +8,7 @@ out
 assets
 course-images
 screenshots
+.tmp-chrome-*/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
