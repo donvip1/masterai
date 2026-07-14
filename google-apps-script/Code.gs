@@ -1,5 +1,5 @@
 const CONFIG = {
-  SPREADSHEET_ID: "",
+  SPREADSHEET_ID: "1ZyoIUgUphrqp0gUeL49wPOWnHtktSwNFvhgh9oxcWnw",
   SHEET_NAME: "Registrations",
   NOTIFICATION_EMAIL: "viplearn4free@gmail.com",
   ACADEMY_NAME: "EFF Master AI Tools Academy",
