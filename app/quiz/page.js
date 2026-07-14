@@ -13,9 +13,9 @@ export default function QuizPage() {
       <main id="top">
         <section className="quiz-section section-band standalone-page" id="quiz">
           <div className="section-heading">
-            <p className="eyebrow">Module Quiz / Test</p>
-            <h1>Objective tests for each handbook module.</h1>
-            <p>Students can submit module quiz results directly to the academy Google Sheet after each class.</p>
+            <p className="eyebrow">Student Module Assessment</p>
+            <h1>Your current module quiz and performance.</h1>
+            <p>Only signed-in students can access quizzes. Student details are loaded from the academy database and each module follows the required correction and cooldown schedule.</p>
           </div>
 
           <QuizClient />

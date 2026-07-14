@@ -10,7 +10,7 @@ EFF means **Everything for Free Academy**. The current program is the AI Tools A
 - `components/` - reusable React UI and client-side flows.
 - `lib/academyData.js` - shared academy data for class days, announcements, modules, and future backend providers.
 - `pages/api/` - Next API wrappers for the existing low-cost backend.
-- `api/` - current registration and quiz handlers that forward to Google Apps Script.
+- `lib/server/` - registration, Student ID lookup, and quiz API handlers that forward to Google Apps Script.
 - `public/manifest.webmanifest`, `public/service-worker.js`, `public/app-icon.svg` - PWA install/offline foundation.
 - `google-apps-script/` - Google Sheets, Drive, and email automation.
 - `quiz-data.js` - objective quiz bank used by the quiz API and React quiz page.
@@ -40,8 +40,8 @@ The site is now built with React through Next.js, which gives a cleaner path to 
 Current path:
 
 - Next.js web app and PWA now.
-- Local dashboard progress through `localStorage` now.
-- Google Apps Script remains the no-cost backend for registration and quiz submission now.
+- Student ID sessions are remembered locally on the signed-in device.
+- Google Apps Script remains the no-cost backend for registration, student lookup, quiz progress, cooldowns, and performance records.
 - Supabase is reserved in `lib/academyData.js` for later, but it is not active and costs nothing now.
 - Future Android/iOS can use Expo or React Native and reuse the same data model, route ideas, API payloads, and student-progress logic.
 
@@ -62,6 +62,8 @@ When the academy starts making enough money, Supabase can be added for student l
 11. Deploy and copy the Web App URL ending in `/exec`.
 12. In Vercel, add `GOOGLE_REGISTRATION_SCRIPT_URL` with that Web App URL.
 
+The registration script also provides Student ID lookup for dashboard login. Whenever `Code.gs` changes, create a new Apps Script deployment version and keep the Vercel environment variable pointed at the `/exec` URL.
+
 For compatibility, the registration endpoint can still use the older `GOOGLE_SCRIPT_URL`, but `GOOGLE_REGISTRATION_SCRIPT_URL` is preferred now.
 
 ## Connect module quizzes to a separate Google Sheet
@@ -79,6 +81,18 @@ For compatibility, the registration endpoint can still use the older `GOOGLE_SCR
 11. Deploy and copy the Web App URL ending in `/exec`.
 12. In Vercel, add `GOOGLE_QUIZ_SCRIPT_URL` with that Web App URL.
 13. Redeploy after adding or changing environment variables.
+
+The quiz script now:
+
+- verifies Student IDs against the registration Sheet;
+- loads student details from the database instead of asking for them again;
+- allows only the next module in sequence;
+- opens corrections 30 minutes after a failed attempt;
+- opens the next module 48 hours after a passed attempt;
+- resets to module 0 after all modules are passed;
+- stores quiz cycles and the next available attempt time.
+
+After replacing `QuizCode.gs`, run `setupSheet` once so the `Cycle` and `Next Attempt At` columns are added, then create a new Web App deployment version.
 
 ## Checks
 

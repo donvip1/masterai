@@ -1,10 +1,32 @@
 const CONFIG = {
   SPREADSHEET_ID: "1EDxb3GMWbtvhajmnHl15tsVm9wUFzGLwRzVEP394jBk",
   SHEET_NAME: "Module Quiz Submissions",
+  REGISTRATION_SPREADSHEET_ID: "1ZyoIUgUphrqp0gUeL49wPOWnHtktSwNFvhgh9oxcWnw",
+  REGISTRATION_SHEET_NAME: "Registrations",
   NOTIFICATION_EMAIL: "viplearn4free@gmail.com",
   ACADEMY_NAME: "Everything for Free Academy",
-  PASS_MARK: 70
+  PASS_MARK: 70,
+  PASSED_COOLDOWN_HOURS: 48,
+  FAILED_RETRY_MINUTES: 30
 };
+
+const MODULE_ORDER = [
+  "module-0",
+  "module-1",
+  "module-2",
+  "module-3",
+  "module-4",
+  "module-5",
+  "module-6",
+  "module-7",
+  "module-8",
+  "module-9",
+  "module-10",
+  "module-11",
+  "module-12",
+  "module-13",
+  "module-14"
+];
 
 const HEADERS = [
   "Timestamp",
@@ -19,10 +41,18 @@ const HEADERS = [
   "Percentage",
   "Result",
   "Answers",
-  "Page URL"
+  "Page URL",
+  "Cycle",
+  "Next Attempt At"
 ];
 
-function doGet() {
+function doGet(e) {
+  const action = e && e.parameter ? String(e.parameter.action || "") : "";
+
+  if (action === "status") {
+    return handleQuizStatus(e.parameter.studentId);
+  }
+
   return jsonResponse({
     ok: true,
     message: CONFIG.ACADEMY_NAME + " module quiz endpoint is live."
@@ -60,33 +90,316 @@ function setupSheet() {
     .setFontWeight("bold");
 }
 
-function handleQuizSubmission(payload) {
-  const sheet = getOrCreateSheet();
-  const percentage = Number(payload.percentage || 0);
-  const result = payload.resultStatus || (percentage >= CONFIG.PASS_MARK ? "Passed" : "Needs Review");
-  const row = [
-    new Date(),
-    payload.studentId || "",
-    payload.fullName || "",
-    payload.whatsappNumber || "",
-    payload.emailAddress || "",
-    payload.moduleId || "",
-    payload.moduleTitle || "",
-    payload.score || 0,
-    payload.total || 0,
-    percentage + "%",
-    result,
-    quizAnswersToText(payload.answers),
-    payload.pageUrl || ""
-  ];
+function handleQuizStatus(studentId) {
+  const normalizedStudentId = normalizeStudentId(studentId);
 
-  sheet.appendRow(row);
-  sendQuizAdminEmail(payload, result);
-  sendQuizStudentEmail(payload, result);
+  if (!normalizedStudentId) {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_ID_REQUIRED",
+      message: "Student ID is required."
+    });
+  }
+
+  const student = findRegisteredStudent(normalizedStudentId);
+
+  if (!student) {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_NOT_FOUND",
+      message: "Student ID was not found in the registration database."
+    });
+  }
+
+  const quizState = buildQuizState(getOrCreateSheet(), normalizedStudentId);
 
   return jsonResponse({
-    ok: true
+    ok: true,
+    student: publicStudentProfile(student),
+    quizState: quizState
   });
+}
+
+function handleQuizSubmission(payload) {
+  const studentId = normalizeStudentId(payload.studentId);
+  const moduleId = String(payload.moduleId || "");
+
+  if (!studentId) {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_ID_REQUIRED",
+      message: "Sign in with your Student ID before taking a quiz."
+    });
+  }
+
+  if (MODULE_ORDER.indexOf(moduleId) < 0) {
+    return jsonResponse({
+      ok: false,
+      code: "INVALID_MODULE",
+      message: "Selected quiz module is not valid."
+    });
+  }
+
+  const student = findRegisteredStudent(studentId);
+
+  if (!student) {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_NOT_FOUND",
+      message: "Student ID was not found in the registration database."
+    });
+  }
+
+  const sheet = getOrCreateSheet();
+  const currentState = buildQuizState(sheet, studentId);
+
+  if (moduleId !== currentState.allowedModuleId) {
+    return jsonResponse({
+      ok: false,
+      code: "MODULE_LOCKED",
+      message: "Complete your current module before attempting another module.",
+      quizState: currentState
+    });
+  }
+
+  if (!currentState.canAttempt) {
+    return jsonResponse({
+      ok: false,
+      code: "QUIZ_COOLDOWN",
+      message: currentState.lockReason,
+      quizState: currentState
+    });
+  }
+
+  const percentage = Number(payload.percentage || 0);
+  const result = percentage >= CONFIG.PASS_MARK ? "Passed" : "Needs Review";
+  const nextAttemptAt = new Date(
+    Date.now() + (
+      result === "Passed"
+        ? CONFIG.PASSED_COOLDOWN_HOURS * 60 * 60 * 1000
+        : CONFIG.FAILED_RETRY_MINUTES * 60 * 1000
+    )
+  );
+  const submission = {
+    studentId: studentId,
+    fullName: student["Full Name"] || "",
+    whatsappNumber: student["WhatsApp Number"] || "",
+    emailAddress: student["Email Address"] || "",
+    moduleId: moduleId,
+    moduleTitle: payload.moduleTitle || moduleId,
+    score: Number(payload.score || 0),
+    total: Number(payload.total || 0),
+    percentage: percentage,
+    resultStatus: result,
+    answers: payload.answers,
+    pageUrl: payload.pageUrl || ""
+  };
+
+  sheet.appendRow([
+    new Date(),
+    submission.studentId,
+    submission.fullName,
+    submission.whatsappNumber,
+    submission.emailAddress,
+    submission.moduleId,
+    submission.moduleTitle,
+    submission.score,
+    submission.total,
+    submission.percentage + "%",
+    submission.resultStatus,
+    quizAnswersToText(submission.answers),
+    submission.pageUrl,
+    currentState.cycle,
+    nextAttemptAt
+  ]);
+
+  sendQuizAdminEmail(submission);
+  sendQuizStudentEmail(submission);
+
+  return jsonResponse({
+    ok: true,
+    quizState: buildQuizState(sheet, studentId)
+  });
+}
+
+function buildQuizState(sheet, studentId) {
+  const history = getStudentQuizHistory(sheet, studentId);
+  let cycle = history.reduce(function(highest, attempt) {
+    return Math.max(highest, attempt.cycle);
+  }, 1);
+  let cycleHistory = history.filter(function(attempt) {
+    return attempt.cycle === cycle;
+  });
+  let results = latestModuleResults(cycleHistory);
+  let completedModules = MODULE_ORDER.filter(function(moduleId) {
+    return results[moduleId] && results[moduleId].result === "Passed";
+  });
+  const completedCycle = completedModules.length === MODULE_ORDER.length;
+
+  if (completedCycle) {
+    cycle += 1;
+    cycleHistory = [];
+    results = {};
+    completedModules = [];
+  }
+
+  const allowedModuleId = MODULE_ORDER.find(function(moduleId) {
+    return completedModules.indexOf(moduleId) < 0;
+  }) || MODULE_ORDER[0];
+  const latestAttempt = history.length ? history[history.length - 1] : null;
+  let canAttempt = true;
+  let nextAttemptAt = "";
+  let lockReason = "";
+
+  if (latestAttempt) {
+    const cooldownMilliseconds = latestAttempt.result === "Passed"
+      ? CONFIG.PASSED_COOLDOWN_HOURS * 60 * 60 * 1000
+      : CONFIG.FAILED_RETRY_MINUTES * 60 * 1000;
+    const availableAt = new Date(latestAttempt.timestamp.getTime() + cooldownMilliseconds);
+
+    if (Date.now() < availableAt.getTime()) {
+      canAttempt = false;
+      nextAttemptAt = availableAt.toISOString();
+      lockReason = latestAttempt.result === "Passed"
+        ? "Your next module opens 48 hours after your last passed quiz."
+        : "You can submit your correction 30 minutes after the failed attempt.";
+    }
+  }
+
+  return {
+    cycle: cycle,
+    cycleReset: completedCycle,
+    allowedModuleId: allowedModuleId,
+    completedModules: completedModules,
+    completedCount: completedModules.length,
+    totalModules: MODULE_ORDER.length,
+    progressPercent: Math.round((completedModules.length / MODULE_ORDER.length) * 100),
+    attemptsCount: cycleHistory.length,
+    totalAttemptsCount: history.length,
+    results: results,
+    latestResult: latestAttempt ? publicQuizAttempt(latestAttempt) : null,
+    canAttempt: canAttempt,
+    nextAttemptAt: nextAttemptAt,
+    lockReason: lockReason
+  };
+}
+
+function getStudentQuizHistory(sheet, studentId) {
+  const values = sheet.getDataRange().getValues();
+
+  if (values.length < 2) {
+    return [];
+  }
+
+  const headers = values[0].map(function(header) {
+    return String(header || "");
+  });
+  const column = {};
+
+  headers.forEach(function(header, index) {
+    column[header] = index;
+  });
+
+  return values.slice(1)
+    .filter(function(row) {
+      return normalizeStudentId(row[column["Student ID"]]) === studentId;
+    })
+    .map(function(row) {
+      const timestamp = row[column["Timestamp"]] instanceof Date
+        ? row[column["Timestamp"]]
+        : new Date(row[column["Timestamp"]]);
+
+      return {
+        timestamp: isNaN(timestamp.getTime()) ? new Date(0) : timestamp,
+        moduleId: String(row[column["Module ID"]] || ""),
+        moduleTitle: String(row[column["Module Title"]] || ""),
+        score: Number(row[column["Score"]] || 0),
+        total: Number(row[column["Total Questions"]] || 0),
+        percentage: parseFloat(String(row[column["Percentage"]] || "0").replace("%", "")) || 0,
+        result: String(row[column["Result"]] || ""),
+        cycle: Number(row[column["Cycle"]] || 1)
+      };
+    })
+    .sort(function(first, second) {
+      return first.timestamp.getTime() - second.timestamp.getTime();
+    });
+}
+
+function latestModuleResults(history) {
+  const results = {};
+
+  history.forEach(function(attempt) {
+    results[attempt.moduleId] = publicQuizAttempt(attempt);
+  });
+
+  return results;
+}
+
+function publicQuizAttempt(attempt) {
+  return {
+    moduleId: attempt.moduleId,
+    moduleTitle: attempt.moduleTitle,
+    score: attempt.score,
+    total: attempt.total,
+    percentage: attempt.percentage,
+    result: attempt.result,
+    submittedAt: attempt.timestamp.toISOString()
+  };
+}
+
+function findRegisteredStudent(studentId) {
+  const spreadsheet = SpreadsheetApp.openById(CONFIG.REGISTRATION_SPREADSHEET_ID);
+  const sheet = spreadsheet.getSheetByName(CONFIG.REGISTRATION_SHEET_NAME);
+
+  if (!sheet) {
+    throw new Error("Registration sheet was not found.");
+  }
+
+  const values = sheet.getDataRange().getValues();
+
+  if (values.length < 2) {
+    return null;
+  }
+
+  const headers = values[0].map(function(header) {
+    return String(header || "");
+  });
+  const studentIdColumn = headers.indexOf("Student ID");
+
+  if (studentIdColumn < 0) {
+    throw new Error("Student ID column is missing from the registration sheet.");
+  }
+
+  for (let rowIndex = values.length - 1; rowIndex >= 1; rowIndex -= 1) {
+    if (normalizeStudentId(values[rowIndex][studentIdColumn]) !== studentId) {
+      continue;
+    }
+
+    const student = {};
+
+    headers.forEach(function(header, columnIndex) {
+      student[header] = displayCellValue(values[rowIndex][columnIndex]);
+    });
+
+    return student;
+  }
+
+  return null;
+}
+
+function publicStudentProfile(student) {
+  return {
+    studentId: student["Student ID"] || "",
+    fullName: student["Full Name"] || "",
+    registrationStatus: student["Registration Status"] || "",
+    paymentStatus: student["Payment Status"] || "",
+    preferredSession: student["Preferred Session"] || "",
+    occupation: student["Occupation"] || "",
+    country: student["Country"] || "",
+    learningInterests: student["Learning Interests"] || "",
+    courseCount: student["Course Count"] || "",
+    courseFee: student["Course Fee"] || ""
+  };
 }
 
 function getOrCreateSheet() {
@@ -110,7 +423,7 @@ function getSpreadsheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
   if (!spreadsheet) {
-    throw new Error("No spreadsheet is connected. Open your module quiz Google Sheet, copy its ID from the URL, and paste it into CONFIG.SPREADSHEET_ID in QuizCode.gs.");
+    throw new Error("No spreadsheet is connected. Paste the quiz Sheet ID into CONFIG.SPREADSHEET_ID.");
   }
 
   return spreadsheet;
@@ -129,6 +442,18 @@ function parsePayload(e) {
   return JSON.parse(e.postData.contents);
 }
 
+function normalizeStudentId(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function displayCellValue(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return value === null || value === undefined ? "" : String(value);
+}
+
 function quizAnswersToText(answers) {
   if (!Array.isArray(answers)) {
     return "";
@@ -142,40 +467,42 @@ function quizAnswersToText(answers) {
   }).join("\n\n");
 }
 
-function sendQuizAdminEmail(payload, result) {
+function sendQuizAdminEmail(submission) {
   const subject = "New Module Quiz Submission - " + CONFIG.ACADEMY_NAME;
   const body =
     "A student has submitted a module quiz.\n\n" +
-    "Full Name: " + (payload.fullName || "") + "\n" +
-    "Student ID: " + (payload.studentId || "Not provided") + "\n" +
-    "WhatsApp: " + (payload.whatsappNumber || "") + "\n" +
-    "Email: " + (payload.emailAddress || "") + "\n" +
-    "Module: " + (payload.moduleTitle || payload.moduleId || "") + "\n" +
-    "Score: " + (payload.score || 0) + "/" + (payload.total || 0) + "\n" +
-    "Percentage: " + (payload.percentage || 0) + "%\n" +
-    "Result: " + result + "\n\n" +
-    "Answers:\n" + quizAnswersToText(payload.answers);
+    "Full Name: " + submission.fullName + "\n" +
+    "Student ID: " + submission.studentId + "\n" +
+    "WhatsApp: " + submission.whatsappNumber + "\n" +
+    "Email: " + submission.emailAddress + "\n" +
+    "Module: " + submission.moduleTitle + "\n" +
+    "Score: " + submission.score + "/" + submission.total + "\n" +
+    "Percentage: " + submission.percentage + "%\n" +
+    "Result: " + submission.resultStatus + "\n\n" +
+    "Answers:\n" + quizAnswersToText(submission.answers);
 
   MailApp.sendEmail(CONFIG.NOTIFICATION_EMAIL, subject, body);
 }
 
-function sendQuizStudentEmail(payload, result) {
-  if (!payload.emailAddress) {
+function sendQuizStudentEmail(submission) {
+  if (!submission.emailAddress) {
     return;
   }
 
   const subject = "Quiz result received - " + CONFIG.ACADEMY_NAME;
   const body =
-    "Hello " + (payload.fullName || "student") + ",\n\n" +
+    "Hello " + (submission.fullName || "student") + ",\n\n" +
     "Your module quiz has been received.\n\n" +
-    "Module: " + (payload.moduleTitle || payload.moduleId || "") + "\n" +
-    "Score: " + (payload.score || 0) + "/" + (payload.total || 0) + "\n" +
-    "Percentage: " + (payload.percentage || 0) + "%\n" +
-    "Result: " + result + "\n\n" +
-    "Keep practicing and follow your instructor's module review guidance.\n\n" +
+    "Module: " + submission.moduleTitle + "\n" +
+    "Score: " + submission.score + "/" + submission.total + "\n" +
+    "Percentage: " + submission.percentage + "%\n" +
+    "Result: " + submission.resultStatus + "\n\n" +
+    (submission.resultStatus === "Passed"
+      ? "Your next module opens after 48 hours."
+      : "You can submit your correction after 30 minutes.") + "\n\n" +
     "Everything for Free Academy";
 
-  MailApp.sendEmail(payload.emailAddress, subject, body);
+  MailApp.sendEmail(submission.emailAddress, subject, body);
 }
 
 function jsonResponse(payload) {

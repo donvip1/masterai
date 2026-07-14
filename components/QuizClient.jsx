@@ -1,73 +1,141 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import quizModules from "../quiz-data";
-import { academyData } from "../lib/academyData";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  clearStudentSession,
+  readStudentSession,
+  writeStudentSession
+} from "../lib/studentSession";
 
-function readDashboardState() {
-  try {
-    return JSON.parse(localStorage.getItem(academyData.storageKey) || "{}");
-  } catch (error) {
-    return {};
+function formatDateTime(value) {
+  if (!value) {
+    return "";
   }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
 }
 
-function recordQuizResult(moduleId, result) {
-  try {
-    const state = readDashboardState();
-    const quizResults = state.quizResults && typeof state.quizResults === "object" ? state.quizResults : {};
-    localStorage.setItem(academyData.storageKey, JSON.stringify({
-      ...state,
-      quizResults: {
-        ...quizResults,
-        [moduleId]: {
-          score: result.score,
-          total: result.total,
-          percentage: result.percentage,
-          passed: Boolean(result.passed),
-          submittedAt: new Date().toISOString()
-        }
-      },
-      updatedAt: new Date().toISOString()
-    }));
-  } catch (error) {}
+function formatRemaining(milliseconds) {
+  if (milliseconds <= 0) {
+    return "Ready for refresh";
+  }
+
+  const totalMinutes = Math.ceil(milliseconds / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m remaining`;
+  }
+
+  return `${minutes}m remaining`;
 }
 
 export default function QuizClient() {
-  const [student, setStudent] = useState({
-    fullName: "",
-    whatsappNumber: "",
-    emailAddress: "",
-    studentId: ""
-  });
-  const [moduleId, setModuleId] = useState("");
+  const [accessReady, setAccessReady] = useState(false);
+  const [session, setSession] = useState(null);
+  const [quizData, setQuizData] = useState(null);
   const [answers, setAnswers] = useState({});
   const [status, setStatus] = useState({ type: "", message: "" });
   const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const currentModule = useMemo(() => quizModules.find((module) => module.id === moduleId) || null, [moduleId]);
+  const [now, setNow] = useState(Date.now());
 
-  function updateStudent(field, value) {
-    setStudent((current) => ({
-      ...current,
-      [field]: value
-    }));
-  }
+  useEffect(() => {
+    const savedSession = readStudentSession();
+    setSession(savedSession);
+    setAccessReady(true);
 
-  function selectModule(value) {
-    setModuleId(value);
-    setAnswers({});
-    setResult(null);
-    setStatus({ type: "", message: "" });
-  }
+    if (savedSession) {
+      loadQuiz(savedSession.studentId);
+    }
+  }, []);
 
-  function validate() {
-    if (!student.fullName || !student.whatsappNumber || !student.emailAddress) {
-      return "Enter your name, WhatsApp number, and email address.";
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function loadQuiz(studentId, options = {}) {
+    setLoading(true);
+
+    if (!options.preserveStatus) {
+      setStatus({ type: "", message: "" });
     }
 
-    if (!currentModule) {
-      return "Select a module before submitting the quiz.";
+    try {
+      const response = await fetch(`/api/quiz?studentId=${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
+        },
+        cache: "no-store"
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "Quiz access could not be loaded.");
+      }
+
+      setQuizData(data);
+      setAnswers({});
+
+      if (data.student) {
+        setSession((current) => {
+          const nextSession = writeStudentSession({
+            ...(current?.profile || {}),
+            ...data.student
+          });
+          return nextSession;
+        });
+      }
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error.message || "Quiz access could not be loaded."
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function signOut() {
+    clearStudentSession();
+    setSession(null);
+    setQuizData(null);
+    setAnswers({});
+    setResult(null);
+  }
+
+  const currentModule = quizData?.module || null;
+  const quizState = quizData?.quizState || null;
+  const questionCount = currentModule?.questions?.length || 0;
+  const nextAttemptTime = quizState?.nextAttemptAt ? new Date(quizState.nextAttemptAt).getTime() : 0;
+  const remainingMilliseconds = nextAttemptTime ? nextAttemptTime - now : 0;
+  const canAttempt = Boolean(quizState?.canAttempt && currentModule && questionCount > 0);
+  const answeredCount = useMemo(
+    () => currentModule?.questions?.filter((question) => answers[question.id]).length || 0,
+    [answers, currentModule]
+  );
+
+  function validate() {
+    if (!session?.studentId) {
+      return "Sign in from the dashboard before taking a quiz.";
+    }
+
+    if (!currentModule || !canAttempt) {
+      return quizState?.lockReason || "This module is not available yet.";
     }
 
     if (currentModule.questions.some((question) => !answers[question.id])) {
@@ -87,13 +155,8 @@ export default function QuizClient() {
     }
 
     const payload = {
-      submissionType: "quiz",
-      fullName: student.fullName.trim(),
-      whatsappNumber: student.whatsappNumber.trim(),
-      emailAddress: student.emailAddress.trim(),
-      studentId: student.studentId.trim(),
+      studentId: session.studentId,
       moduleId: currentModule.id,
-      moduleTitle: currentModule.title,
       answers: currentModule.questions.map((question) => ({
         questionId: question.id,
         selectedAnswer: answers[question.id]
@@ -116,92 +179,135 @@ export default function QuizClient() {
       const apiResult = await response.json().catch(() => ({}));
 
       if (!response.ok || !apiResult.ok) {
+        if (apiResult.quizState) {
+          setQuizData((current) => current ? { ...current, quizState: apiResult.quizState } : current);
+        }
         throw new Error(apiResult.message || "Quiz could not be submitted.");
       }
 
       setResult(apiResult);
-      recordQuizResult(payload.moduleId, apiResult);
-      setStatus({ type: "success", message: "Your quiz result has been submitted to the academy." });
+      setAnswers({});
+      setStatus({
+        type: "success",
+        message: apiResult.passed
+          ? "Quiz passed. Your next module opens after 48 hours."
+          : "Quiz submitted. Correction access opens after 30 minutes."
+      });
+      await loadQuiz(session.studentId, { preserveStatus: true });
     } catch (error) {
-      setStatus({ type: "error", message: error.message || "Something went wrong. Please try again or contact the academy." });
+      setStatus({
+        type: "error",
+        message: error.message || "Something went wrong. Please try again or contact the academy."
+      });
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (!accessReady) {
+    return <div className="quiz-access-card">Checking student access...</div>;
+  }
+
+  if (!session) {
+    return (
+      <div className="quiz-access-card">
+        <p className="eyebrow">Student Login Required</p>
+        <h2>Only signed-in students can access module quizzes.</h2>
+        <p>Open the dashboard and sign in with the Student ID issued after registration.</p>
+        <Link className="button primary" href="/dashboard">Go to Dashboard Login</Link>
+      </div>
+    );
   }
 
   return (
     <form className="quiz-form" onSubmit={submitQuiz} noValidate>
       <input type="text" name="quizWebsite" className="honeypot" tabIndex="-1" autoComplete="off" aria-hidden="true" />
 
-      <div className="quiz-top">
-        <div className="quiz-fields">
-          <label>
-            <span>Full Name *</span>
-            <input type="text" value={student.fullName} onChange={(event) => updateStudent("fullName", event.target.value)} required />
-          </label>
-          <label>
-            <span>WhatsApp Number *</span>
-            <input type="tel" value={student.whatsappNumber} onChange={(event) => updateStudent("whatsappNumber", event.target.value)} required />
-          </label>
-          <label>
-            <span>Email Address *</span>
-            <input type="email" value={student.emailAddress} onChange={(event) => updateStudent("emailAddress", event.target.value)} required />
-          </label>
-          <label>
-            <span>Student ID</span>
-            <input type="text" value={student.studentId} onChange={(event) => updateStudent("studentId", event.target.value)} placeholder="EFF-AI-2026-001" />
-          </label>
-          <label className="quiz-module-select">
-            <span>Select Module *</span>
-            <select value={moduleId} onChange={(event) => selectModule(event.target.value)} required>
-              <option value="">Choose a module</option>
-              {quizModules.map((module) => <option key={module.id} value={module.id}>{module.title}</option>)}
-            </select>
-          </label>
+      <div className="quiz-student-bar">
+        <div>
+          <span>Signed-in Student</span>
+          <strong>{quizData?.student?.fullName || session.profile?.fullName || "Registered Student"}</strong>
+          <p>{session.studentId}</p>
         </div>
-
-        <aside className="quiz-summary" aria-live="polite">
-          <span>Current Test</span>
-          <strong>{currentModule ? currentModule.title : "No module selected"}</strong>
-          <p>{currentModule ? `${currentModule.questions.length} objective questions. Your result will be submitted to the academy sheet.` : "Choose a module to load its objective questions."}</p>
-        </aside>
+        <div className="quiz-student-actions">
+          <Link className="mini-link" href="/dashboard">Dashboard</Link>
+          <button className="mini-link" type="button" onClick={signOut}>Sign Out</button>
+        </div>
       </div>
 
-      <div className="quiz-questions">
-        {!currentModule && <p className="quiz-empty">Select a module above to begin.</p>}
-        {currentModule?.questions.map((question, questionIndex) => (
-          <article className="quiz-question-card" key={question.id}>
-            <h3>{questionIndex + 1}. {question.question}</h3>
-            <div className="quiz-options">
-              {question.options.map((option) => (
-                <label key={option}>
-                  <input
-                    type="radio"
-                    name={`quiz_${question.id}`}
-                    value={option}
-                    checked={answers[question.id] === option}
-                    onChange={() => setAnswers((current) => ({ ...current, [question.id]: option }))}
-                    required
-                  />
-                  {option}
-                </label>
+      {loading && <div className="quiz-loading">Loading your current module...</div>}
+
+      {quizData && (
+        <>
+          <div className="quiz-top">
+            <div className="quiz-current-module">
+              <span>Current Module · Cycle {quizState.cycle}</span>
+              <h2>{currentModule?.title || "Module access pending"}</h2>
+              <p>
+                {canAttempt
+                  ? `${questionCount} objective questions are available. ${answeredCount} answered.`
+                  : quizState.lockReason || "Your current module is temporarily locked."}
+              </p>
+            </div>
+
+            <aside className={`quiz-summary ${canAttempt ? "is-available" : "is-locked"}`} aria-live="polite">
+              <span>{canAttempt ? "Available Now" : "Assessment Locked"}</span>
+              <strong>{canAttempt ? "Ready to begin" : formatRemaining(remainingMilliseconds)}</strong>
+              <p>
+                {canAttempt
+                  ? "Complete every question and submit once."
+                  : `Next access: ${formatDateTime(quizState.nextAttemptAt)}`}
+              </p>
+              {!canAttempt && (
+                <button className="button ghost-button" type="button" onClick={() => loadQuiz(session.studentId)} disabled={loading}>
+                  Refresh Access
+                </button>
+              )}
+            </aside>
+          </div>
+
+          {canAttempt && (
+            <div className="quiz-questions">
+              {currentModule.questions.map((question, questionIndex) => (
+                <article className="quiz-question-card" key={question.id}>
+                  <h3>{questionIndex + 1}. {question.question}</h3>
+                  <div className="quiz-options">
+                    {question.options.map((option) => (
+                      <label key={option}>
+                        <input
+                          type="radio"
+                          name={`quiz_${question.id}`}
+                          value={option}
+                          checked={answers[question.id] === option}
+                          onChange={() => setAnswers((current) => ({ ...current, [question.id]: option }))}
+                          required
+                        />
+                        {option}
+                      </label>
+                    ))}
+                  </div>
+                </article>
               ))}
             </div>
-          </article>
-        ))}
-      </div>
-
-      <div className="quiz-footer">
-        <button className="button primary quiz-submit" type="submit" disabled={submitting}>{submitting ? "Submitting..." : "Submit Quiz"}</button>
-        <div className="quiz-result" aria-live="polite">
-          {result && (
-            <>
-              <strong>Score: {result.score}/{result.total} ({result.percentage}%)</strong>
-              <span>{result.passed ? "Passed and submitted." : "Submitted. Please review this module again."}</span>
-            </>
           )}
-        </div>
-      </div>
+
+          <div className="quiz-footer">
+            {canAttempt && (
+              <button className="button primary quiz-submit" type="submit" disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit Current Module"}
+              </button>
+            )}
+            <div className="quiz-result" aria-live="polite">
+              {result && (
+                <>
+                  <strong>Score: {result.score}/{result.total} ({result.percentage}%)</strong>
+                  <span>{result.passed ? "Passed. Next module in 48 hours." : "Correction available in 30 minutes."}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {status.message && <div className={`form-status is-visible ${status.type}`} role="status" aria-live="polite">{status.message}</div>}
     </form>

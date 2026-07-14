@@ -180,25 +180,25 @@ export default function HomePage() {
                 <div>
                   <span>Progress</span>
                   <strong>0%</strong>
-                  <p>Saved on this device for offline use</p>
+                  <p>Loaded from the student&apos;s quiz record</p>
                 </div>
                 <div>
                   <span>Backend</span>
-                  <strong>Ready for future sync</strong>
-                  <p>Local now, Supabase slot reserved</p>
+                  <strong>Google Sheets sync</strong>
+                  <p>Student ID login and progress are active</p>
                 </div>
               </div>
             </div>
             <div className="app-feature-grid" aria-label="Student app features">
               <article>
                 <span>01</span>
-                <h3>Offline-ready pages</h3>
-                <p>The main academy pages are cached after first visit so students can reopen them with weak internet.</p>
+                <h3>Student ID access</h3>
+                <p>Registered students open their dashboard with the Student ID issued after registration.</p>
               </article>
               <article>
                 <span>02</span>
-                <h3>Local lesson progress</h3>
-                <p>The dashboard saves completed modules on the student device today, without a paid backend.</p>
+                <h3>Database-backed progress</h3>
+                <p>The dashboard loads module results, quiz performance, and cooldown access from Google Sheets.</p>
               </article>
               <article>
                 <span>03</span>
@@ -208,7 +208,7 @@ export default function HomePage() {
               <article>
                 <span>04</span>
                 <h3>Mobile app path</h3>
-                <p>This Next.js PWA structure can later be paired with Expo or React Native using the same data and API model.</p>
+                <p>This Next.js structure can later be paired with Expo or React Native using the same data and API model.</p>
               </article>
             </div>
           </div>

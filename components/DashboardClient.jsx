@@ -3,129 +3,311 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { academyData } from "../lib/academyData";
+import { quizCatalog } from "../lib/quizCatalog";
+import {
+  clearStudentSession,
+  normalizeStudentId,
+  readRecentStudentId,
+  readStudentSession,
+  writeStudentSession
+} from "../lib/studentSession";
 import { ConnectionStatus } from "./AppRuntime";
 
-const defaultState = {
-  profile: {
-    displayName: "",
-    studentId: "",
-    paymentStatus: "Not confirmed",
-    preferredSession: "Morning (10 AM)"
-  },
+const emptyQuizState = {
+  cycle: 1,
+  allowedModuleId: "module-0",
   completedModules: [],
-  quizResults: {},
-  updatedAt: ""
+  completedCount: 0,
+  totalModules: quizCatalog.length,
+  progressPercent: 0,
+  attemptsCount: 0,
+  totalAttemptsCount: 0,
+  results: {},
+  latestResult: null,
+  canAttempt: true,
+  nextAttemptAt: "",
+  lockReason: ""
 };
 
-function readState() {
-  if (typeof window === "undefined") {
-    return defaultState;
-  }
-
-  try {
-    const saved = JSON.parse(localStorage.getItem(academyData.storageKey) || "{}");
-    return {
-      ...defaultState,
-      ...saved,
-      profile: {
-        ...defaultState.profile,
-        ...(saved.profile || {})
-      },
-      completedModules: Array.isArray(saved.completedModules) ? saved.completedModules : [],
-      quizResults: saved.quizResults && typeof saved.quizResults === "object" ? saved.quizResults : {}
-    };
-  } catch (error) {
-    return defaultState;
-  }
+function formatNaira(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? `₦${amount.toLocaleString("en-NG")}` : "Not available";
 }
 
-function writeState(state) {
-  localStorage.setItem(academyData.storageKey, JSON.stringify({
-    ...state,
-    updatedAt: new Date().toISOString()
-  }));
+function formatDateTime(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+}
+
+async function requestStudentProfile(studentId) {
+  const response = await fetch("/api/student", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ studentId })
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok || !result.ok || !result.student) {
+    throw new Error(result.message || "Student ID could not be verified.");
+  }
+
+  return result.student;
 }
 
 export default function DashboardClient() {
-  const [studentState, setStudentState] = useState(defaultState);
-  const [saveStatus, setSaveStatus] = useState("");
+  const [authReady, setAuthReady] = useState(false);
+  const [session, setSession] = useState(null);
+  const [studentId, setStudentId] = useState("");
+  const [loginStatus, setLoginStatus] = useState({ type: "", message: "" });
+  const [signingIn, setSigningIn] = useState(false);
+  const [quizState, setQuizState] = useState(emptyQuizState);
+  const [quizStatus, setQuizStatus] = useState("");
+  const [loadingProgress, setLoadingProgress] = useState(false);
 
   useEffect(() => {
-    setStudentState(readState());
+    const savedSession = readStudentSession();
+    const recentStudentId = readRecentStudentId();
+    const registered = new URLSearchParams(window.location.search).get("registered") === "1";
+
+    if (registered) {
+      setLoginStatus({
+        type: "success",
+        message: "Registration complete. Your Student ID is prefilled below. Sign in to open your dashboard."
+      });
+    }
+
+    async function restoreAccess() {
+      if (!savedSession) {
+        if (recentStudentId) {
+          setStudentId(recentStudentId);
+        }
+
+        setAuthReady(true);
+        return;
+      }
+
+      setStudentId(savedSession.studentId);
+
+      try {
+        const verifiedProfile = await requestStudentProfile(savedSession.studentId);
+        const nextSession = writeStudentSession({
+          ...(savedSession.profile || {}),
+          ...verifiedProfile
+        });
+
+        setSession(nextSession);
+        await loadQuizStatus(nextSession.studentId);
+      } catch (error) {
+        clearStudentSession();
+        setLoginStatus({
+          type: "error",
+          message: error.message || "Your saved Student ID session could not be verified. Sign in again."
+        });
+      } finally {
+        setAuthReady(true);
+      }
+    }
+
+    restoreAccess();
   }, []);
 
-  const completedSet = useMemo(() => new Set(studentState.completedModules), [studentState.completedModules]);
-  const completedCount = academyData.modules.filter((module) => completedSet.has(module.id)).length;
-  const progressPercent = academyData.modules.length === 0 ? 0 : Math.round((completedCount / academyData.modules.length) * 100);
-  const nextModule = academyData.modules.find((module) => !completedSet.has(module.id)) || academyData.modules[academyData.modules.length - 1];
-  const quizCount = Object.keys(studentState.quizResults || {}).length;
+  async function loadQuizStatus(activeStudentId) {
+    setLoadingProgress(true);
+    setQuizStatus("");
 
-  function updateProfile(field, value) {
-    setStudentState((current) => ({
-      ...current,
-      profile: {
-        ...current.profile,
-        [field]: value
+    try {
+      const response = await fetch(`/api/quiz?studentId=${encodeURIComponent(activeStudentId)}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
+        },
+        cache: "no-store"
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Progress could not be loaded.");
       }
-    }));
+
+      setQuizState({
+        ...emptyQuizState,
+        ...result.quizState
+      });
+
+      if (result.student) {
+        setSession((current) => {
+          const nextProfile = {
+            ...(current?.profile || {}),
+            ...result.student
+          };
+          return writeStudentSession(nextProfile);
+        });
+      }
+    } catch (error) {
+      setQuizStatus(error.message || "Progress could not be loaded.");
+    } finally {
+      setLoadingProgress(false);
+    }
   }
 
-  function saveDashboard(event) {
+  async function signIn(event) {
     event.preventDefault();
-    writeState(studentState);
-    setSaveStatus("Dashboard saved on this device.");
+    const normalizedStudentId = normalizeStudentId(studentId);
+
+    if (!normalizedStudentId) {
+      setLoginStatus({ type: "error", message: "Enter your Student ID." });
+      return;
+    }
+
+    setSigningIn(true);
+    setLoginStatus({ type: "", message: "" });
+
+    try {
+      const profile = await requestStudentProfile(normalizedStudentId);
+      const nextSession = writeStudentSession(profile);
+      setSession(nextSession);
+      setStudentId(nextSession.studentId);
+      setLoginStatus({ type: "", message: "" });
+      await loadQuizStatus(nextSession.studentId);
+    } catch (error) {
+      setLoginStatus({
+        type: "error",
+        message: error.message || "Student ID could not be verified."
+      });
+    } finally {
+      setSigningIn(false);
+    }
   }
 
-  function toggleModule(moduleId) {
-    setStudentState((current) => {
-      const nextCompleted = new Set(current.completedModules);
-
-      if (nextCompleted.has(moduleId)) {
-        nextCompleted.delete(moduleId);
-      } else {
-        nextCompleted.add(moduleId);
-      }
-
-      const nextState = {
-        ...current,
-        completedModules: Array.from(nextCompleted)
-      };
-
-      writeState(nextState);
-      setSaveStatus("Progress saved on this device.");
-      return nextState;
-    });
+  function signOut() {
+    clearStudentSession();
+    setSession(null);
+    setQuizState(emptyQuizState);
+    setQuizStatus("");
+    setLoginStatus({ type: "", message: "" });
   }
 
-  function resetProgress() {
-    const nextState = {
-      ...studentState,
-      completedModules: []
-    };
+  const completedSet = useMemo(
+    () => new Set(quizState.completedModules || []),
+    [quizState.completedModules]
+  );
+  const currentModule = quizCatalog.find((module) => module.id === quizState.allowedModuleId) || quizCatalog[0];
+  const profile = session?.profile || {};
+  const latestResult = quizState.latestResult;
+  const nextAttemptLabel = formatDateTime(quizState.nextAttemptAt);
+  const adminSocialUrl = `https://x.com/${academyData.academy.contact.social.replace("@", "")}`;
 
-    writeState(nextState);
-    setStudentState(nextState);
-    setSaveStatus("Progress reset on this device.");
+  if (!authReady) {
+    return (
+      <section className="student-access section-band standalone-page">
+        <div className="auth-loading">Loading student access...</div>
+      </section>
+    );
+  }
+
+  if (!session) {
+    return (
+      <section className="student-access section-band standalone-page">
+        <div className="student-access-layout">
+          <div className="student-access-copy">
+            <p className="eyebrow">Student Access</p>
+            <h1>Open your academy dashboard.</h1>
+            <p>
+              Registered students sign in with the Student ID issued after registration. Your profile, quiz progress, performance, and module access are loaded from the academy records.
+            </p>
+            <div className="access-benefits" aria-label="Dashboard benefits">
+              <span>Progress tracking</span>
+              <span>Quiz performance</span>
+              <span>Module access</span>
+              <span>Class updates</span>
+            </div>
+          </div>
+
+          <form className="student-login-card" onSubmit={signIn}>
+            <div>
+              <p className="eyebrow">Dashboard Login</p>
+              <h2>Enter your Student ID</h2>
+              <p>Use the ID shown after registration or sent to your email.</p>
+            </div>
+            <label>
+              <span>Student ID</span>
+              <input
+                type="text"
+                value={studentId}
+                onChange={(event) => setStudentId(normalizeStudentId(event.target.value))}
+                placeholder="EFF-AI-2026-001"
+                autoComplete="username"
+                required
+              />
+            </label>
+            <button className="button primary" type="submit" disabled={signingIn}>
+              {signingIn ? "Checking ID..." : "Sign In"}
+            </button>
+
+            {loginStatus.message && (
+              <div className={`form-status is-visible ${loginStatus.type}`} role="status">
+                {loginStatus.message}
+              </div>
+            )}
+
+            <details className="id-recovery">
+              <summary>Forgot your Student ID?</summary>
+              <p>
+                Contact an admin with the full name, phone number, WhatsApp number, or email address used during registration.
+              </p>
+              <div className="recovery-actions">
+                <a className="button ghost-button" href={academyData.academy.contact.whatsapp} target="_blank" rel="noreferrer">
+                  Request on WhatsApp
+                </a>
+                <a className="button ghost-button" href={adminSocialUrl} target="_blank" rel="noreferrer">
+                  Send Admin a DM
+                </a>
+                <a className="mini-link" href={`mailto:${academyData.academy.contact.email}?subject=EFF Academy Student ID Recovery`}>
+                  Email admin
+                </a>
+              </div>
+            </details>
+
+            <p className="login-register-note">
+              Not registered yet? <Link href="/register">Complete registration</Link>
+            </p>
+          </form>
+        </div>
+      </section>
+    );
   }
 
   return (
     <>
       <section className="dashboard-hero section-band">
         <div className="dashboard-hero-copy">
-          <p className="eyebrow">Student App Dashboard</p>
-          <h1>Track classes, modules, announcements, and progress.</h1>
+          <p className="eyebrow">Student Dashboard · Cycle {quizState.cycle}</p>
+          <h1>Welcome, {profile.fullName || "student"}.</h1>
           <p>
-            This dashboard is the first app-ready layer for the academy. It works online, saves progress on this device, and keeps the backend path open for future cloud sync.
+            Track your class modules, quiz performance, announcements, and the next available assessment from one student account.
           </p>
-          <div className="dashboard-status-row" aria-label="App status">
+          <div className="dashboard-status-row" aria-label="Student status">
             <ConnectionStatus />
-            <span className="status-pill is-online">Local progress ready</span>
-            <span className="status-pill is-online">Next.js PWA foundation</span>
+            <span className="status-pill is-online">{profile.registrationStatus || "Registered"}</span>
+            <span className="status-pill is-online">{profile.paymentStatus || "Payment pending"}</span>
           </div>
           <div className="hero-actions">
-            <Link className="button primary" href="/quiz">Take Module Quiz</Link>
-            <Link className="button secondary" href="/register">Register Student</Link>
-            <button className="button secondary" type="button" data-install-app hidden>Install App</button>
+            <Link className="button primary" href="/quiz">Open Current Quiz</Link>
+            <button className="button secondary" type="button" onClick={signOut}>Sign Out</button>
           </div>
         </div>
         <aside className="next-class-panel" aria-label="Next class schedule">
@@ -141,85 +323,61 @@ export default function DashboardClient() {
       <section className="dashboard-section section-band light">
         <div className="dashboard-layout">
           <aside className="student-profile-panel">
-            <form onSubmit={saveDashboard}>
+            <section className="student-profile-card">
               <div className="panel-heading">
                 <span>Student Profile</span>
-                <strong>{studentState.profile.displayName || "New Student"}</strong>
+                <strong>{profile.fullName || "Registered Student"}</strong>
               </div>
-              <label>
-                <span>Display Name</span>
-                <input
-                  type="text"
-                  name="displayName"
-                  placeholder="Your name"
-                  value={studentState.profile.displayName}
-                  onChange={(event) => updateProfile("displayName", event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Student ID</span>
-                <input
-                  type="text"
-                  name="studentId"
-                  placeholder="EFF-AI-2026-001"
-                  value={studentState.profile.studentId}
-                  onChange={(event) => updateProfile("studentId", event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Payment Status</span>
-                <select
-                  name="paymentStatus"
-                  value={studentState.profile.paymentStatus}
-                  onChange={(event) => updateProfile("paymentStatus", event.target.value)}
-                >
-                  <option value="Not confirmed">Not confirmed</option>
-                  <option value="Paid - Proof Uploaded">Paid - Proof Uploaded</option>
-                  <option value="Grace Period">Grace Period</option>
-                  <option value="Discuss Payment">Discuss Payment</option>
-                </select>
-              </label>
-              <label>
-                <span>Preferred Session</span>
-                <select
-                  name="preferredSession"
-                  value={studentState.profile.preferredSession}
-                  onChange={(event) => updateProfile("preferredSession", event.target.value)}
-                >
-                  <option value="Morning (10 AM)">Morning (10 AM)</option>
-                  <option value="Evening (4 PM)">Evening (4 PM)</option>
-                  <option value="Night (8 PM if introduced)">Night (8 PM if introduced)</option>
-                </select>
-              </label>
-              <button className="button primary" type="submit">Save Dashboard</button>
-              <button className="button ghost-button" type="button" onClick={resetProgress}>Reset Progress</button>
-              <p className="save-note" role="status" aria-live="polite">{saveStatus}</p>
-            </form>
+              <dl className="student-profile-details">
+                <div><dt>Student ID</dt><dd>{session.studentId}</dd></div>
+                <div><dt>Payment</dt><dd>{profile.paymentStatus || "Not confirmed"}</dd></div>
+                <div><dt>Session</dt><dd>{profile.preferredSession || "Not selected"}</dd></div>
+                <div><dt>Occupation</dt><dd>{profile.occupation || "Not provided"}</dd></div>
+                <div><dt>Course Fee</dt><dd>{formatNaira(profile.courseFee)}</dd></div>
+              </dl>
+              <button className="button ghost-button" type="button" onClick={() => loadQuizStatus(session.studentId)} disabled={loadingProgress}>
+                {loadingProgress ? "Refreshing..." : "Refresh Progress"}
+              </button>
+              <button className="button ghost-button" type="button" onClick={signOut}>Sign Out</button>
+            </section>
           </aside>
 
           <div className="dashboard-main">
+            {quizStatus && <div className="form-status is-visible error">{quizStatus}</div>}
+
             <div className="dashboard-metrics" aria-label="Student progress metrics">
               <article>
                 <span>Progress</span>
-                <strong>{progressPercent}%</strong>
-                <p>{completedCount} of {academyData.modules.length} modules complete</p>
+                <strong>{quizState.progressPercent}%</strong>
+                <p>{quizState.completedCount} of {quizState.totalModules} modules passed in cycle {quizState.cycle}</p>
               </article>
               <article>
-                <span>Next Module</span>
-                <strong>{nextModule?.title || "All modules complete"}</strong>
-                <p>{nextModule?.task || "Prepare final project evidence."}</p>
+                <span>Current Module</span>
+                <strong>{currentModule.title}</strong>
+                <p>{currentModule.dayRange}</p>
               </article>
               <article>
-                <span>Payment</span>
-                <strong>{studentState.profile.paymentStatus}</strong>
-                <p>Saved locally until backend sync is added.</p>
+                <span>Latest Score</span>
+                <strong>{latestResult ? `${latestResult.percentage}%` : "No attempt"}</strong>
+                <p>{latestResult ? latestResult.result : "Take your first module quiz."}</p>
               </article>
               <article>
-                <span>Quizzes</span>
-                <strong>{quizCount}</strong>
-                <p>Saved from this device after quiz submission.</p>
+                <span>Attempts</span>
+                <strong>{quizState.totalAttemptsCount}</strong>
+                <p>{quizState.canAttempt ? "Current quiz is available." : `Next access: ${nextAttemptLabel}`}</p>
               </article>
             </div>
+
+            {!quizState.canAttempt && (
+              <section className="dashboard-card cooldown-card">
+                <div>
+                  <span>Assessment Cooldown</span>
+                  <h2>{quizState.lockReason}</h2>
+                  <p>Your next quiz access is scheduled for {nextAttemptLabel}.</p>
+                </div>
+                <Link className="button primary" href="/quiz">View Quiz Status</Link>
+              </section>
+            )}
 
             <section className="dashboard-card">
               <div className="dashboard-card-heading">
@@ -243,32 +401,41 @@ export default function DashboardClient() {
             <section className="dashboard-card">
               <div className="dashboard-card-heading">
                 <div>
-                  <span>Lesson Progress</span>
-                  <h2>30-day module path</h2>
+                  <span>Quiz Progress</span>
+                  <h2>Module performance path</h2>
                 </div>
-                <Link className="mini-link" href="/quiz">Module quiz</Link>
+                <Link className="mini-link" href="/quiz">Current quiz</Link>
               </div>
               <div className="progress-track" aria-hidden="true">
-                <span style={{ width: `${progressPercent}%` }} />
+                <span style={{ width: `${quizState.progressPercent}%` }} />
               </div>
               <div className="module-progress-list">
-                {academyData.modules.map((module) => {
+                {quizCatalog.map((module) => {
+                  const result = quizState.results?.[module.id];
                   const complete = completedSet.has(module.id);
+                  const current = module.id === quizState.allowedModuleId;
+                  const failed = result?.result === "Needs Review";
+                  const status = complete
+                    ? `Passed · ${result.percentage}%`
+                    : failed
+                      ? `Correction required · ${result.percentage}%`
+                      : current
+                        ? quizState.canAttempt ? "Available now" : "Current module · waiting"
+                        : "Locked";
+
                   return (
-                    <article key={module.id} className={complete ? "is-complete" : ""}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={complete}
-                          onChange={() => toggleModule(module.id)}
-                        />
+                    <article
+                      key={module.id}
+                      className={`${complete ? "is-complete" : ""} ${current ? "is-current" : ""} ${failed ? "is-failed" : ""}`.trim()}
+                    >
+                      <div className="module-progress-content">
                         <span>
                           <b>{module.dayRange}</b>
                           <strong>{module.title}</strong>
-                          <small>{module.summary}</small>
-                          <em>{module.task}</em>
+                          <small>Cycle {quizState.cycle}</small>
+                          <em>{status}</em>
                         </span>
-                      </label>
+                      </div>
                     </article>
                   );
                 })}
@@ -278,23 +445,14 @@ export default function DashboardClient() {
             <section className="dashboard-card backend-card">
               <div className="dashboard-card-heading">
                 <div>
-                  <span>Backend Roadmap</span>
-                  <h2>Supabase slot reserved for later.</h2>
+                  <span>Student Records</span>
+                  <h2>Google Sheets sync is active.</h2>
                 </div>
-                <strong className="backend-badge">Not active yet</strong>
+                <strong className="backend-badge">Server checked</strong>
               </div>
               <p>
-                Current storage uses this device plus the existing Google Apps Script endpoints. When the academy starts making enough money, this reserved layer can connect student login, synced progress, certificates, payments, and an admin dashboard.
+                Registration details remain in the academy database and are reused for quiz records, performance review, future certificates, and admin follow-up. Students no longer repeat their contact details for every assessment.
               </p>
-              <div className="backend-grid">
-                {Object.entries(academyData.backend.providers).map(([key, provider]) => (
-                  <article key={key} className={provider.status === "reserved" ? "is-reserved" : ""}>
-                    <span>{provider.status}</span>
-                    <h3>{provider.label}</h3>
-                    <p>{provider.purpose}</p>
-                  </article>
-                ))}
-              </div>
             </section>
           </div>
         </div>

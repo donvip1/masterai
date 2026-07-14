@@ -378,6 +378,9 @@ button {
 .announcement-list span,
 .backend-grid span,
 .module-progress-list b,
+.student-login-card span,
+.quiz-student-bar span,
+.quiz-current-module span,
 .announcement-card span,
 .class-days-card span,
 .registration-notice span,
@@ -443,6 +446,9 @@ button {
 .dashboard-card,
 .dashboard-metrics article,
 .student-profile-panel form,
+.student-profile-card,
+.student-login-card,
+.quiz-access-card,
 .announcement-list article,
 .backend-grid article,
 .quiz-form,
@@ -840,6 +846,125 @@ button {
   min-height: calc(100vh - 150px);
 }
 
+.student-access {
+  display: grid;
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(238, 244, 255, 0.9), rgba(255, 255, 255, 0.98)),
+    #fff;
+}
+
+.student-access-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  align-items: center;
+  gap: clamp(30px, 6vw, 76px);
+  width: 100%;
+  max-width: var(--container);
+  margin: 0 auto;
+}
+
+.student-access-copy h1 {
+  max-width: 720px;
+  margin: 0;
+  color: var(--navy);
+  font-size: clamp(2.5rem, 5vw, 4.8rem);
+  line-height: 0.98;
+}
+
+.student-access-copy > p:not(.eyebrow) {
+  max-width: 660px;
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: 1.08rem;
+}
+
+.access-benefits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 560px;
+  margin-top: 26px;
+}
+
+.access-benefits span {
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--navy);
+  font-weight: 850;
+}
+
+.student-login-card {
+  display: grid;
+  gap: 18px;
+  padding: clamp(22px, 4vw, 32px);
+}
+
+.student-login-card h2,
+.quiz-access-card h2,
+.quiz-current-module h2,
+.cooldown-card h2 {
+  margin: 0;
+  color: var(--navy);
+  line-height: 1.12;
+}
+
+.student-login-card > div > p:not(.eyebrow),
+.quiz-access-card p,
+.quiz-current-module p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.id-recovery {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.id-recovery summary {
+  color: var(--navy);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.id-recovery p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.recovery-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.login-register-note {
+  margin: 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.login-register-note a {
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.auth-loading {
+  width: min(520px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--muted);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
 .cta-section {
   color: #fff;
 }
@@ -990,10 +1115,40 @@ button {
   top: 92px;
 }
 
-.student-profile-panel form {
+.student-profile-panel form,
+.student-profile-card {
   display: grid;
   gap: 16px;
   padding: 22px;
+}
+
+.student-profile-details {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.student-profile-details div {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.student-profile-details div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.student-profile-details dt {
+  color: var(--faint);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.student-profile-details dd {
+  margin: 4px 0 0;
+  color: var(--navy);
+  font-weight: 850;
 }
 
 .panel-heading {
@@ -1112,6 +1267,24 @@ button {
   background: rgba(22, 163, 74, 0.06);
 }
 
+.module-progress-list article.is-current {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: rgba(37, 99, 235, 0.055);
+}
+
+.module-progress-list article.is-failed {
+  border-color: rgba(220, 38, 38, 0.3);
+  background: rgba(220, 38, 38, 0.045);
+}
+
+.module-progress-content {
+  padding: 16px;
+}
+
+.module-progress-content > span {
+  display: block;
+}
+
 .module-progress-list label {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
@@ -1159,6 +1332,31 @@ button {
   font-size: 0.89rem;
   font-style: normal;
   font-weight: 800;
+}
+
+.cooldown-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  border-left: 5px solid var(--amber);
+}
+
+.cooldown-card span {
+  color: #9a5a00;
+  font-size: 0.73rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cooldown-card h2 {
+  margin-top: 5px;
+  font-size: clamp(1.25rem, 3vw, 1.7rem);
+}
+
+.cooldown-card p {
+  margin: 9px 0 0;
+  color: var(--muted);
 }
 
 .backend-card {
@@ -1212,6 +1410,65 @@ button {
   padding: clamp(18px, 3vw, 32px);
 }
 
+.quiz-access-card {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 36px);
+  text-align: center;
+}
+
+.quiz-access-card .button {
+  margin-top: 18px;
+}
+
+.quiz-student-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.quiz-student-bar strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--navy);
+  font-size: 1.25rem;
+}
+
+.quiz-student-bar p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.quiz-student-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quiz-current-module {
+  padding: 4px 0;
+}
+
+.quiz-current-module h2 {
+  margin-top: 7px;
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+}
+
+.quiz-loading {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--soft);
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .quiz-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;
@@ -1250,6 +1507,29 @@ button {
 .quiz-summary p {
   margin: 12px 0 0;
   color: var(--muted);
+}
+
+.quiz-summary.is-available {
+  border-color: rgba(22, 163, 74, 0.28);
+  background: rgba(22, 163, 74, 0.06);
+}
+
+.quiz-summary.is-available span {
+  color: var(--green);
+}
+
+.quiz-summary.is-locked {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: #fff8eb;
+}
+
+.quiz-summary.is-locked span {
+  color: #9a5a00;
+}
+
+.quiz-summary .button {
+  width: 100%;
+  margin-top: 16px;
 }
 
 .quiz-questions {
@@ -1757,8 +2037,13 @@ input[type="checkbox"] {
   .announcement-board,
   .course-picker-layout,
   .form-layout,
-  .quiz-top {
+  .quiz-top,
+  .student-access-layout {
     grid-template-columns: 1fr;
+  }
+
+  .student-access-layout {
+    max-width: 720px;
   }
 
   .form-progress,
@@ -1890,9 +2175,23 @@ input[type="checkbox"] {
   .stack-header,
   .stack-footer,
   .dashboard-card-heading,
-  .dashboard-status-row {
+  .dashboard-status-row,
+  .quiz-student-bar,
+  .cooldown-card {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .access-benefits {
+    grid-template-columns: 1fr;
+  }
+
+  .quiz-student-actions {
+    width: 100%;
+  }
+
+  .quiz-student-actions .mini-link {
+    flex: 1;
   }
 
   .phone-preview {

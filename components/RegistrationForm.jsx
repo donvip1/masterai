@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { rememberRecentStudentId } from "../lib/studentSession";
 
 const paidProofValue = "I have paid and uploaded proof";
 const maxSourceScreenshotSize = 8 * 1024 * 1024;
@@ -146,6 +148,7 @@ async function preparePaymentScreenshot(file) {
 }
 
 export default function RegistrationForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState(initialForm);
   const [step, setStep] = useState(0);
   const [paymentScreenshot, setPaymentScreenshot] = useState(null);
@@ -258,14 +261,23 @@ export default function RegistrationForm() {
         throw new Error(result.message || "Registration could not be submitted.");
       }
 
+      const confirmedStudentId = result.studentId || "";
+
       setFormData(initialForm);
       setPaymentScreenshot(null);
       setStep(0);
       setStatus({
         type: "success",
-        message: `Congratulations! Your registration has been received. Your Student ID is ${result.studentId || "being generated"}.`,
+        message: `Registration received. Your Student ID is ${confirmedStudentId || "being generated"}. Redirecting you to the dashboard login.`,
         onboardingLink: result.onboardingLink || ""
       });
+
+      if (confirmedStudentId) {
+        rememberRecentStudentId(confirmedStudentId);
+        window.setTimeout(() => {
+          router.push("/dashboard?registered=1");
+        }, 1800);
+      }
     } catch (error) {
       setStatus({
         type: "error",

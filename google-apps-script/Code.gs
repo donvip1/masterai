@@ -41,7 +41,13 @@ const HEADERS = [
   "Page URL"
 ];
 
-function doGet() {
+function doGet(e) {
+  const action = e && e.parameter ? String(e.parameter.action || "") : "";
+
+  if (action === "student") {
+    return handleStudentLookup(e.parameter.studentId);
+  }
+
   return jsonResponse({
     ok: true,
     message: CONFIG.ACADEMY_NAME + " registration endpoint is live."
@@ -121,6 +127,90 @@ function handleRegistrationSubmission(payload) {
     ok: true,
     studentId: studentId
   });
+}
+
+function handleStudentLookup(studentId) {
+  const normalizedStudentId = normalizeStudentId(studentId);
+
+  if (!normalizedStudentId) {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_ID_REQUIRED",
+      message: "Enter your Student ID."
+    });
+  }
+
+  const student = findStudentById(normalizedStudentId);
+
+  if (!student) {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_NOT_FOUND",
+      message: "Student ID was not found. Confirm the ID or contact an academy admin."
+    });
+  }
+
+  return jsonResponse({
+    ok: true,
+    student: {
+      studentId: student["Student ID"],
+      fullName: student["Full Name"],
+      registrationStatus: student["Registration Status"],
+      paymentStatus: student["Payment Status"],
+      preferredSession: student["Preferred Session"],
+      occupation: student["Occupation"],
+      country: student["Country"],
+      learningInterests: student["Learning Interests"],
+      courseCount: student["Course Count"],
+      courseFee: student["Course Fee"]
+    }
+  });
+}
+
+function findStudentById(studentId) {
+  const sheet = getOrCreateSheet();
+  const values = sheet.getDataRange().getValues();
+
+  if (values.length < 2) {
+    return null;
+  }
+
+  const headers = values[0].map(function(header) {
+    return String(header || "");
+  });
+  const studentIdColumn = headers.indexOf("Student ID");
+
+  if (studentIdColumn < 0) {
+    throw new Error("Student ID column is missing from the registration sheet.");
+  }
+
+  for (let rowIndex = values.length - 1; rowIndex >= 1; rowIndex -= 1) {
+    if (normalizeStudentId(values[rowIndex][studentIdColumn]) !== studentId) {
+      continue;
+    }
+
+    const student = {};
+
+    headers.forEach(function(header, columnIndex) {
+      student[header] = displayCellValue(values[rowIndex][columnIndex]);
+    });
+
+    return student;
+  }
+
+  return null;
+}
+
+function normalizeStudentId(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function displayCellValue(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return value === null || value === undefined ? "" : String(value);
 }
 
 function getOrCreateSheet() {
