@@ -44,6 +44,7 @@ Current path:
 - Visitors who have not installed the PWA receive a device-aware install prompt. Chromium browsers use the native install dialog, while iPhone and iPad visitors receive Add to Home Screen instructions.
 - The service worker keeps the public app shell and visited pages available when the network is unavailable. API requests and private student records are never cached.
 - Student ID sessions are remembered locally on the signed-in device.
+- Signed-in students receive a timed Google Meet button on Mondays, Wednesdays, and Fridays. It opens 10 minutes before the 10 AM, 4 PM, and 8 PM Lagos sessions and remains available during class.
 - Google Apps Script remains the no-cost backend for registration, student lookup, quiz progress, cooldowns, and performance records.
 - Supabase is reserved in `lib/academyData.js` for later, but it is not active and costs nothing now.
 - Future Android/iOS can use Expo or React Native and reuse the same data model, route ideas, API payloads, and student-progress logic.

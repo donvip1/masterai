@@ -12,6 +12,7 @@ import {
   writeStudentSession
 } from "../lib/studentSession";
 import { ConnectionStatus } from "./AppRuntime";
+import LiveClassAccess from "./LiveClassAccess";
 
 const emptyQuizState = {
   cycle: 1,
@@ -317,6 +318,7 @@ export default function DashboardClient() {
           <div className="class-day-list">
             {academyData.academy.classDays.map((day) => <strong key={day}>{day}</strong>)}
           </div>
+          <LiveClassAccess preferredSession={profile.preferredSession} />
         </aside>
       </section>
 

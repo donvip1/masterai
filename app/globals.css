@@ -1222,6 +1222,66 @@ button {
   line-height: 1.2;
 }
 
+.live-class-access {
+  display: grid;
+  gap: 13px;
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  background: rgba(7, 19, 53, 0.28);
+}
+
+.live-class-access.is-open {
+  border-color: rgba(253, 230, 138, 0.74);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(255, 255, 255, 0.1));
+  box-shadow: 0 16px 36px rgba(5, 12, 35, 0.2);
+}
+
+.live-class-heading {
+  display: grid;
+  gap: 5px;
+}
+
+.live-class-heading span {
+  color: #bfdbfe;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.live-class-access.is-open .live-class-heading span {
+  color: #fde68a;
+}
+
+.live-class-heading strong {
+  color: #fff;
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.live-class-preference,
+.live-class-note {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.live-class-button {
+  width: 100%;
+  background: var(--amber);
+  color: #111827;
+  box-shadow: 0 12px 26px rgba(5, 12, 35, 0.2);
+}
+
+.live-class-button:hover,
+.live-class-button:focus {
+  background: #fbbf24;
+  color: #111827;
+}
+
 .dashboard-section {
   background: var(--soft);
 }
