@@ -46,6 +46,24 @@ function formatRemaining(milliseconds) {
   return `${minutes}m remaining`;
 }
 
+function reportDataFromAttempt(attempt) {
+  return {
+    studentId: attempt.studentId,
+    moduleId: attempt.moduleId,
+    moduleName: attempt.moduleName,
+    taskType: attempt.taskType || "Module Quiz",
+    completionDate: attempt.completionDate,
+    attemptTimestamp: attempt.attemptTimestamp,
+    percentage: attempt.percentage,
+    score: attempt.score,
+    totalQuestions: attempt.totalQuestions,
+    result: attempt.result,
+    passed: attempt.passed,
+    cycle: attempt.cycle,
+    questionBreakdown: attempt.questionBreakdown
+  };
+}
+
 export default function QuizClient() {
   const [accessReady, setAccessReady] = useState(false);
   const [session, setSession] = useState(null);
@@ -55,6 +73,11 @@ export default function QuizClient() {
   const [result, setResult] = useState(null);
   const [moduleReport, setModuleReport] = useState(null);
   const [reportStatus, setReportStatus] = useState({ type: "", message: "" });
+  const [reportHistory, setReportHistory] = useState([]);
+  const [historyStatus, setHistoryStatus] = useState({ type: "", message: "" });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [recoveringReportKey, setRecoveringReportKey] = useState("");
+  const [recoveringAll, setRecoveringAll] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -66,6 +89,7 @@ export default function QuizClient() {
 
     if (savedSession) {
       loadQuiz(savedSession.studentId);
+      loadReportHistory(savedSession.studentId);
     }
   }, []);
 
@@ -125,6 +149,50 @@ export default function QuizClient() {
     }
   }
 
+  async function loadReportHistory(studentId, options = {}) {
+    setHistoryLoading(true);
+
+    if (!options.silent) {
+      setHistoryStatus({ type: "", message: "" });
+    }
+
+    try {
+      const response = await fetch(`/api/module-report?studentId=${encodeURIComponent(studentId)}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
+        },
+        cache: "no-store"
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.ok || !Array.isArray(data.attempts)) {
+        throw new Error(data.message || "Previous module submissions could not be loaded.");
+      }
+
+      setReportHistory(data.attempts);
+
+      if (!options.silent) {
+        const missingCount = data.attempts.filter((attempt) => !attempt.report && attempt.canGenerate).length;
+        setHistoryStatus({
+          type: missingCount ? "warning" : "success",
+          message: missingCount
+            ? `${missingCount} previous submission${missingCount === 1 ? "" : "s"} can now receive a recovered report.`
+            : data.attempts.length
+              ? "All eligible previous submissions already have reports."
+              : "No previous quiz submissions were found for this Student ID."
+        });
+      }
+    } catch (error) {
+      setHistoryStatus({
+        type: "warning",
+        message: error.message || "Previous module reports could not be loaded."
+      });
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   function signOut() {
     clearStudentSession();
 
@@ -138,6 +206,10 @@ export default function QuizClient() {
     setResult(null);
     setModuleReport(null);
     setReportStatus({ type: "", message: "" });
+    setReportHistory([]);
+    setHistoryStatus({ type: "", message: "" });
+    setRecoveringReportKey("");
+    setRecoveringAll(false);
   }
 
   const currentModule = quizData?.module || null;
@@ -150,6 +222,10 @@ export default function QuizClient() {
     () => currentModule?.questions?.filter((question) => answers[question.id]).length || 0,
     [answers, currentModule]
   );
+  const recoverableReportCount = reportHistory.filter(
+    (attempt) => !attempt.report && attempt.canGenerate
+  ).length;
+  const generatedReportCount = reportHistory.filter((attempt) => attempt.report).length;
 
   function validate() {
     if (!session?.studentId) {
@@ -173,7 +249,7 @@ export default function QuizClient() {
         type: "error",
         message: "The quiz was saved, but report details were not returned by the server."
       });
-      return;
+      return { ok: false };
     }
 
     setReportStatus({
@@ -236,17 +312,88 @@ export default function QuizClient() {
             ? "Report generated, stored in Drive, and emailed successfully."
             : "Report generated and stored in Drive. The email delivery status is shown below."
         });
+        return {
+          ok: true,
+          report: savedReport.report
+        };
       } catch (error) {
         setReportStatus({
           type: "warning",
           message: error.message || "The academy copy could not be stored. Your local PNG is still ready."
         });
+        return { ok: false };
       }
     } catch (error) {
       setReportStatus({
         type: "error",
         message: error.message || "The quiz was saved, but the report image could not be generated."
       });
+      return { ok: false };
+    }
+  }
+
+  async function recoverPreviousReport(attempt) {
+    if (!attempt?.canGenerate || attempt.report || submitting || recoveringAll || recoveringReportKey) {
+      return;
+    }
+
+    setRecoveringReportKey(attempt.attemptKey);
+    setHistoryStatus({
+      type: "success",
+      message: `Generating the saved report for ${attempt.moduleName}...`
+    });
+
+    try {
+      const outcome = await generateAndStoreReport(reportDataFromAttempt(attempt));
+      await loadReportHistory(session.studentId, { silent: true });
+      setHistoryStatus({
+        type: outcome.ok ? "success" : "warning",
+        message: outcome.ok
+          ? "Previous module report recovered and emailed successfully."
+          : "The local report was created, but its Drive or email copy still needs attention."
+      });
+    } finally {
+      setRecoveringReportKey("");
+    }
+  }
+
+  async function recoverAllMissingReports() {
+    const missingAttempts = reportHistory.filter((attempt) => !attempt.report && attempt.canGenerate);
+
+    if (!missingAttempts.length || submitting || recoveringAll || recoveringReportKey) {
+      return;
+    }
+
+    setRecoveringAll(true);
+    let completed = 0;
+    let failed = 0;
+
+    try {
+      for (let index = 0; index < missingAttempts.length; index += 1) {
+        const attempt = missingAttempts[index];
+        setHistoryStatus({
+          type: "success",
+          message: `Recovering report ${index + 1} of ${missingAttempts.length}: ${attempt.moduleName}`
+        });
+
+        const outcome = await generateAndStoreReport(reportDataFromAttempt(attempt));
+
+        if (outcome.ok) {
+          completed += 1;
+        } else {
+          failed += 1;
+        }
+      }
+
+      await loadReportHistory(session.studentId, { silent: true });
+      setHistoryStatus({
+        type: failed ? "warning" : "success",
+        message: failed
+          ? `${completed} report${completed === 1 ? "" : "s"} recovered. ${failed} still need attention.`
+          : `${completed} previous report${completed === 1 ? "" : "s"} recovered and emailed successfully.`
+      });
+    } finally {
+      setRecoveringAll(false);
     }
   }
 
@@ -339,6 +486,7 @@ export default function QuizClient() {
         loadQuiz(session.studentId, { preserveStatus: true }),
         generateAndStoreReport(apiResult.report)
       ]);
+      await loadReportHistory(session.studentId, { silent: true });
     } catch (error) {
       setStatus({
         type: "error",
@@ -379,6 +527,136 @@ export default function QuizClient() {
           <button className="mini-link" type="button" onClick={signOut}>Sign Out</button>
         </div>
       </div>
+
+      <section className="report-recovery-panel" aria-labelledby="report-recovery-title">
+        <div className="report-recovery-heading">
+          <div>
+            <span>Previous Submission Recovery</span>
+            <h2 id="report-recovery-title">Recover reports for tasks already submitted.</h2>
+            <p>
+              Your saved Google Sheet quiz results are checked automatically. No module retake is required.
+            </p>
+          </div>
+          <div className="report-recovery-actions">
+            <button
+              className="button ghost-button"
+              type="button"
+              onClick={() => loadReportHistory(session.studentId)}
+              disabled={submitting || historyLoading || recoveringAll || Boolean(recoveringReportKey)}
+            >
+              {historyLoading ? "Checking..." : "Refresh History"}
+            </button>
+            {recoverableReportCount > 0 && (
+              <button
+                className="button primary"
+                type="button"
+                onClick={recoverAllMissingReports}
+                disabled={submitting || recoveringAll || Boolean(recoveringReportKey)}
+              >
+                {recoveringAll
+                  ? "Recovering Reports..."
+                  : `Generate All Missing (${recoverableReportCount})`}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="report-recovery-metrics" aria-label="Previous report status">
+          <div>
+            <span>Saved Attempts</span>
+            <strong>{reportHistory.length}</strong>
+          </div>
+          <div>
+            <span>Reports Generated</span>
+            <strong>{generatedReportCount}</strong>
+          </div>
+          <div>
+            <span>Ready to Recover</span>
+            <strong>{recoverableReportCount}</strong>
+          </div>
+        </div>
+
+        {historyStatus.message && (
+          <div className={`form-status is-visible ${historyStatus.type}`} role="status" aria-live="polite">
+            {historyStatus.message}
+          </div>
+        )}
+
+        {historyLoading && !reportHistory.length && (
+          <div className="report-history-loading">Checking previous quiz submissions...</div>
+        )}
+
+        {reportHistory.length > 0 && (
+          <div className="report-history-list">
+            {reportHistory.map((attempt) => {
+              const generated = Boolean(attempt.report);
+              const recovering = recoveringReportKey === attempt.attemptKey;
+
+              return (
+                <article className="report-history-row" key={attempt.attemptKey}>
+                  <div className="report-history-main">
+                    <span>Cycle {attempt.cycle} · {formatDateTime(attempt.completionDate)}</span>
+                    <strong>{attempt.moduleName}</strong>
+                    <p>
+                      Score {attempt.score}/{attempt.totalQuestions} ({attempt.percentage}%) · {attempt.result}
+                    </p>
+                  </div>
+
+                  <strong className={generated ? "history-generated" : attempt.passed ? "history-passed" : "history-review"}>
+                    {generated ? "Report Ready" : attempt.passed ? "Passed" : "Needs Improvement"}
+                  </strong>
+
+                  <div className="report-history-actions">
+                    {generated ? (
+                      <>
+                        <a
+                          className="mini-link"
+                          href={attempt.report.pngDownloadUrl || attempt.report.pngUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Download PNG
+                        </a>
+                        {attempt.report.pdfDownloadUrl && (
+                          <a
+                            className="mini-link"
+                            href={attempt.report.pdfDownloadUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Download PDF
+                          </a>
+                        )}
+                        {attempt.report.whatsappUrl && (
+                          <a
+                            className="mini-link"
+                            href={attempt.report.whatsappUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            WhatsApp
+                          </a>
+                        )}
+                      </>
+                    ) : attempt.canGenerate ? (
+                      <button
+                        className="button secondary"
+                        type="button"
+                        onClick={() => recoverPreviousReport(attempt)}
+                        disabled={submitting || recoveringAll || Boolean(recoveringReportKey)}
+                      >
+                        {recovering ? "Generating..." : "Generate Report"}
+                      </button>
+                    ) : (
+                      <span className="report-history-note">Saved question details need admin review.</span>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {loading && <div className="quiz-loading">Loading your current module...</div>}
 
@@ -438,7 +716,11 @@ export default function QuizClient() {
 
           <div className="quiz-footer">
             {canAttempt && (
-              <button className="button primary quiz-submit" type="submit" disabled={submitting}>
+              <button
+                className="button primary quiz-submit"
+                type="submit"
+                disabled={submitting || recoveringAll || Boolean(recoveringReportKey)}
+              >
                 {submitting ? "Submitting..." : "Submit Current Module"}
               </button>
             )}

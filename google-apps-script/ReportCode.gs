@@ -34,7 +34,13 @@ const REPORT_HEADERS = [
   "Page URL"
 ];
 
-function doGet() {
+function doGet(e) {
+  const action = e && e.parameter ? String(e.parameter.action || "") : "";
+
+  if (action === "history") {
+    return handleReportHistory(e.parameter.studentId);
+  }
+
   return reportJsonResponse({
     ok: true,
     message: REPORT_CONFIG.ACADEMY_NAME + " module report endpoint is live."
@@ -84,7 +90,7 @@ function saveModuleReport(payload) {
     throw new Error("Student ID, module ID, and report image are required.");
   }
 
-  const quizAttempt = findLatestQuizAttempt(studentId, moduleId);
+  const quizAttempt = findQuizAttempt(studentId, moduleId, payload.attemptTimestamp);
 
   if (!quizAttempt) {
     throw new Error("A matching saved quiz submission was not found.");
@@ -195,6 +201,70 @@ function saveModuleReport(payload) {
   });
 }
 
+function handleReportHistory(studentId) {
+  const normalizedStudentId = normalizeReportStudentId(studentId);
+
+  if (!normalizedStudentId) {
+    return reportJsonResponse({
+      ok: false,
+      code: "STUDENT_ID_REQUIRED",
+      message: "Student ID is required."
+    });
+  }
+
+  const student = findReportStudent(normalizedStudentId);
+
+  if (!student) {
+    return reportJsonResponse({
+      ok: false,
+      code: "STUDENT_NOT_FOUND",
+      message: "Student ID was not found in the registration database."
+    });
+  }
+
+  const attempts = getStudentQuizAttempts(normalizedStudentId);
+  const reportMap = getStudentGeneratedReportMap(
+    getOrCreateReportSheet(),
+    normalizedStudentId
+  );
+
+  return reportJsonResponse({
+    ok: true,
+    student: {
+      studentId: normalizedStudentId,
+      fullName: student["Full Name"] || ""
+    },
+    attempts: attempts.map(function(attempt) {
+      const report = reportMap[reportAttemptKey(attempt.moduleId, attempt.timestamp)] || null;
+      const correctCount = attempt.questionBreakdown.filter(function(question) {
+        return question.correct;
+      }).length;
+
+      return {
+        attemptKey: reportAttemptKey(attempt.moduleId, attempt.timestamp),
+        attemptTimestamp: attempt.timestamp.toISOString(),
+        completionDate: attempt.timestamp.toISOString(),
+        studentId: normalizedStudentId,
+        moduleId: attempt.moduleId,
+        moduleName: attempt.moduleTitle || attempt.moduleId,
+        taskType: "Module Quiz",
+        score: attempt.score,
+        totalQuestions: attempt.total,
+        percentage: attempt.percentage,
+        result: attempt.passed ? "Passed" : "Failed",
+        passed: attempt.passed,
+        cycle: attempt.cycle,
+        questionBreakdown: attempt.questionBreakdown,
+        canGenerate:
+          attempt.total > 0 &&
+          attempt.questionBreakdown.length === attempt.total &&
+          correctCount === attempt.score,
+        report: report
+      };
+    })
+  });
+}
+
 function validateReportAgainstQuiz(payload, quizAttempt) {
   const score = Number(payload.score);
   const totalQuestions = Number(payload.totalQuestions);
@@ -219,7 +289,35 @@ function validateReportAgainstQuiz(payload, quizAttempt) {
   }
 }
 
-function findLatestQuizAttempt(studentId, moduleId) {
+function findQuizAttempt(studentId, moduleId, attemptTimestamp) {
+  const attempts = getStudentQuizAttempts(studentId).filter(function(attempt) {
+    return attempt.moduleId === moduleId;
+  });
+
+  if (!attempts.length) {
+    return null;
+  }
+
+  if (attemptTimestamp) {
+    const requestedTimestamp = new Date(attemptTimestamp);
+
+    if (!isNaN(requestedTimestamp.getTime())) {
+      const exactAttempt = attempts.find(function(attempt) {
+        return attempt.timestamp.getTime() === requestedTimestamp.getTime();
+      });
+
+      if (exactAttempt) {
+        return exactAttempt;
+      }
+
+      throw new Error("The selected historical quiz attempt was not found.");
+    }
+  }
+
+  return attempts[0];
+}
+
+function getStudentQuizAttempts(studentId) {
   const spreadsheet = SpreadsheetApp.openById(REPORT_CONFIG.QUIZ_SPREADSHEET_ID);
   const sheet = spreadsheet.getSheetByName(REPORT_CONFIG.QUIZ_SHEET_NAME);
 
@@ -230,7 +328,7 @@ function findLatestQuizAttempt(studentId, moduleId) {
   const values = sheet.getDataRange().getValues();
 
   if (values.length < 2) {
-    return null;
+    return [];
   }
 
   const headers = values[0].map(function(header) {
@@ -238,36 +336,34 @@ function findLatestQuizAttempt(studentId, moduleId) {
   });
   const column = reportColumnMap(headers);
 
-  for (let rowIndex = values.length - 1; rowIndex >= 1; rowIndex -= 1) {
-    const row = values[rowIndex];
+  return values.slice(1)
+    .filter(function(row) {
+      return normalizeReportStudentId(row[column["Student ID"]]) === studentId;
+    })
+    .map(function(row) {
+      const timestamp = row[column["Timestamp"]] instanceof Date
+        ? row[column["Timestamp"]]
+        : new Date(row[column["Timestamp"]]);
 
-    if (
-      normalizeReportStudentId(row[column["Student ID"]]) !== studentId ||
-      String(row[column["Module ID"]] || "") !== moduleId
-    ) {
-      continue;
-    }
-
-    const timestamp = row[column["Timestamp"]] instanceof Date
-      ? row[column["Timestamp"]]
-      : new Date(row[column["Timestamp"]]);
-
-    if (isNaN(timestamp.getTime())) {
-      throw new Error("The saved quiz completion date is invalid.");
-    }
-
-    return {
-      timestamp: timestamp,
-      moduleTitle: String(row[column["Module Title"]] || ""),
-      score: Number(row[column["Score"]] || 0),
-      total: Number(row[column["Total Questions"]] || 0),
-      percentage: parseFloat(String(row[column["Percentage"]] || "0").replace("%", "")) || 0,
-      passed: String(row[column["Result"]] || "") === "Passed",
-      cycle: Number(row[column["Cycle"]] || 1)
-    };
-  }
-
-  return null;
+      return {
+        timestamp: timestamp,
+        moduleId: String(row[column["Module ID"]] || ""),
+        moduleTitle: String(row[column["Module Title"]] || ""),
+        score: Number(row[column["Score"]] || 0),
+        total: Number(row[column["Total Questions"]] || 0),
+        percentage: parseFloat(String(row[column["Percentage"]] || "0").replace("%", "")) || 0,
+        passed: String(row[column["Result"]] || "") === "Passed",
+        cycle: Number(row[column["Cycle"]] || 1),
+        questionBreakdown: parseSavedQuestionBreakdown(row[column["Answers"]])
+      };
+    })
+    .filter(function(attempt) {
+      return !isNaN(attempt.timestamp.getTime()) && attempt.moduleId;
+    })
+    .sort(function(first, second) {
+      return second.timestamp.getTime() - first.timestamp.getTime();
+    })
+    .slice(0, 100);
 }
 
 function findReportStudent(studentId) {
@@ -328,10 +424,16 @@ function ensureReportHeaders(sheet) {
 }
 
 function findExistingReport(sheet, studentId, moduleId, completionDate) {
+  const reportMap = getStudentGeneratedReportMap(sheet, studentId);
+  return reportMap[reportAttemptKey(moduleId, completionDate)] || null;
+}
+
+function getStudentGeneratedReportMap(sheet, studentId) {
   const values = sheet.getDataRange().getValues();
+  const reports = {};
 
   if (values.length < 2) {
-    return null;
+    return reports;
   }
 
   const headers = values[0].map(function(header) {
@@ -339,7 +441,7 @@ function findExistingReport(sheet, studentId, moduleId, completionDate) {
   });
   const column = reportColumnMap(headers);
 
-  for (let rowIndex = values.length - 1; rowIndex >= 1; rowIndex -= 1) {
+  for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex];
     const savedCompletionDate = row[column["Completion Date"]] instanceof Date
       ? row[column["Completion Date"]]
@@ -347,9 +449,7 @@ function findExistingReport(sheet, studentId, moduleId, completionDate) {
 
     if (
       normalizeReportStudentId(row[column["Student ID"]]) !== studentId ||
-      String(row[column["Module ID"]] || "") !== moduleId ||
       isNaN(savedCompletionDate.getTime()) ||
-      savedCompletionDate.getTime() !== completionDate.getTime() ||
       String(row[column["Status"]] || "") !== "Generated"
     ) {
       continue;
@@ -359,11 +459,13 @@ function findExistingReport(sheet, studentId, moduleId, completionDate) {
       ? row[column["Time Generated"]]
       : new Date(row[column["Time Generated"]]);
 
-    return {
+    const moduleId = String(row[column["Module ID"]] || "");
+
+    reports[reportAttemptKey(moduleId, savedCompletionDate)] = {
       status: "Generated",
       emailStatus: String(row[column["Email Status"]] || ""),
       timeGenerated: isNaN(generatedAt.getTime()) ? "" : generatedAt.toISOString(),
-      completionDate: completionDate.toISOString(),
+      completionDate: savedCompletionDate.toISOString(),
       fileName: reportFileBaseName(studentId, reportModuleNumber(moduleId)) + ".png",
       pdfFileName: reportFileBaseName(studentId, reportModuleNumber(moduleId)) + ".pdf",
       pngUrl: String(row[column["PNG Report URL"]] || ""),
@@ -375,7 +477,7 @@ function findExistingReport(sheet, studentId, moduleId, completionDate) {
     };
   }
 
-  return null;
+  return reports;
 }
 
 function getReportModuleFolder(moduleNumber) {
@@ -475,6 +577,33 @@ function sanitizeQuestionBreakdown(value) {
   });
 }
 
+function parseSavedQuestionBreakdown(value) {
+  const text = String(value || "").trim();
+
+  if (!text) {
+    return [];
+  }
+
+  return text.split(/\n\s*\n/).map(function(block, index) {
+    const lines = block.split("\n").map(function(line) {
+      return String(line || "").trim();
+    }).filter(Boolean);
+    const questionLine = lines[0] || "";
+    const resultLine = lines.find(function(line) {
+      return line.indexOf("Result:") === 0;
+    }) || "";
+
+    return {
+      number: index + 1,
+      questionId: "",
+      question: questionLine.replace(/^\d+\.\s*/, ""),
+      correct: /^Result:\s*Correct$/i.test(resultLine)
+    };
+  }).filter(function(question) {
+    return question.question;
+  });
+}
+
 function questionBreakdownToText(questions) {
   return questions.map(function(question) {
     return question.number + ". " + question.question + " - " +
@@ -497,6 +626,10 @@ function reportFileBaseName(studentId, moduleNumber) {
 
 function reportDownloadUrl(fileId) {
   return "https://drive.google.com/uc?export=download&id=" + fileId;
+}
+
+function reportAttemptKey(moduleId, completionDate) {
+  return String(moduleId || "") + "|" + completionDate.getTime();
 }
 
 function reportColumnMap(headers) {

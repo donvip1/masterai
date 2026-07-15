@@ -122,6 +122,19 @@ The `WhatsApp Share URL` column is the instructor's current sharing control unti
 
 If the report deployment is temporarily unavailable, the saved quiz is not affected and the student can still download the locally generated PNG.
 
+### Recover reports for older submissions
+
+Students who submitted quizzes before module reports were enabled can sign in and open the Quiz page. The **Previous Submission Recovery** section:
+
+- loads their historical quiz attempts directly from the quiz Sheet;
+- identifies attempts that do not yet have a generated report;
+- provides **Generate Report** for one attempt;
+- provides **Generate All Missing** for a complete backfill;
+- reuses existing reports instead of creating duplicate Drive files or emails;
+- never requires the student to retake a module.
+
+After adding this recovery update, replace `ReportCode.gs` in the separate report Apps Script project and create a new Web App deployment version. The `GOOGLE_REPORT_SCRIPT_URL` can remain the same when the existing deployment is updated to the new version.
+
 ## Checks
 
 ```bash
