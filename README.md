@@ -41,6 +41,8 @@ The site is now built with React through Next.js, which gives a cleaner path to 
 Current path:
 
 - Next.js web app and PWA now.
+- Visitors who have not installed the PWA receive a device-aware install prompt. Chromium browsers use the native install dialog, while iPhone and iPad visitors receive Add to Home Screen instructions.
+- The service worker keeps the public app shell and visited pages available when the network is unavailable. API requests and private student records are never cached.
 - Student ID sessions are remembered locally on the signed-in device.
 - Google Apps Script remains the no-cost backend for registration, student lookup, quiz progress, cooldowns, and performance records.
 - Supabase is reserved in `lib/academyData.js` for later, but it is not active and costs nothing now.

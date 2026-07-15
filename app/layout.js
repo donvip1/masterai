@@ -12,8 +12,19 @@ export const metadata = {
   applicationName: academyData.academy.name,
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/app-icon.svg",
-    apple: "/app-icon.svg"
+    icon: [
+      { url: "/app-icon.svg", type: "image/svg+xml" },
+      { url: "/app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/app-icon-512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ]
+  },
+  appleWebApp: {
+    capable: true,
+    title: "EFF Academy",
+    statusBarStyle: "default"
   },
   openGraph: {
     title: academyData.academy.name,

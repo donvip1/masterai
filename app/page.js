@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ConnectionStatus } from "../components/AppRuntime";
+import { ConnectionStatus, InstallAppButton } from "../components/AppRuntime";
 import { SiteFooter, SiteHeader } from "../components/SiteChrome";
 import { academyData } from "../lib/academyData";
 
@@ -214,7 +214,7 @@ export default function HomePage() {
           </div>
           <div className="centered-action">
             <Link className="button primary" href="/dashboard">Open Dashboard Preview</Link>
-            <button className="button ghost-button" type="button" data-install-app hidden>Install App</button>
+            <InstallAppButton />
           </div>
         </section>
 
