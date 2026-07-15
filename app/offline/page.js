@@ -3,7 +3,8 @@ import { academyData } from "../../lib/academyData";
 
 export const metadata = {
   title: "Offline",
-  description: "Offline page for Everything for Free Academy."
+  description: "Offline page for Everything for Free Academy.",
+  robots: { index: false, follow: false }
 };
 
 export default function OfflinePage() {

@@ -3,7 +3,9 @@ import { SiteFooter, SiteHeader } from "../../components/SiteChrome";
 
 export const metadata = {
   title: "Student Dashboard",
-  description: "Student dashboard for class days, announcements, lesson progress, quiz history, and future app sync."
+  description: "Student dashboard for class days, announcements, lesson progress, quiz history, and future app sync.",
+  alternates: { canonical: "/dashboard" },
+  robots: { index: false, follow: false }
 };
 
 export default function DashboardPage() {

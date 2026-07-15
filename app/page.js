@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ConnectionStatus, InstallAppButton } from "../components/AppRuntime";
 import { SiteFooter, SiteHeader } from "../components/SiteChrome";
+import ManagedAnnouncements from "../components/ManagedAnnouncements";
 import { academyData } from "../lib/academyData";
 
 const tools = [
@@ -37,11 +38,43 @@ const lessonSystem = [
   ["10 min", "Close", "Homework, next class preview, and WhatsApp follow-up."]
 ];
 
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "EducationalOrganization",
+      "@id": "https://effacademy.xyz/#organization",
+      name: "Everything for Free Academy",
+      url: "https://effacademy.xyz",
+      email: "viplearn4free@gmail.com",
+      telephone: "+2349012545656",
+      sameAs: ["https://wa.link/gv9hre"]
+    },
+    {
+      "@type": "Course",
+      "@id": "https://effacademy.xyz/#course",
+      name: "AI Tools Academy",
+      description: "A practical 30-day AI tools training program covering prompting, design, video, websites, productivity, and freelancing.",
+      provider: { "@id": "https://effacademy.xyz/#organization" },
+      educationalLevel: "Beginner to intermediate",
+      courseMode: "Online",
+      timeRequired: "P30D",
+      hasCourseInstance: {
+        "@type": "CourseInstance",
+        courseMode: "Online",
+        courseWorkload: "PT2H",
+        instructor: { "@type": "Person", name: "EFF Academy Instructor" }
+      }
+    }
+  ]
+};
+
 export default function HomePage() {
   const { academy } = academyData;
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <SiteHeader />
       <main id="top">
         <section className="hero section-band">
@@ -109,11 +142,7 @@ export default function HomePage() {
             <p>Check this space for academy notices, registration updates, payment reminders, class changes, and other important information.</p>
           </div>
           <div className="announcement-board" aria-label="Academy announcements and class schedule">
-            <article className="announcement-card">
-              <span>Announcement Board</span>
-              <h3>Latest notices will be posted here.</h3>
-              <p>Use this section to announce new batches, deadlines, class reminders, payment updates, special sessions, or any important message students should see first.</p>
-            </article>
+            <ManagedAnnouncements className="announcement-board-list" />
             <article className="class-days-card">
               <span>Class Days</span>
               <h3>Classes hold on Mondays, Wednesdays, and Fridays.</h3>

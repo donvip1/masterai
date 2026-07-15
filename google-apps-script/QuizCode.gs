@@ -111,6 +111,14 @@ function handleQuizStatus(studentId) {
     });
   }
 
+  if (String(student["Registration Status"] || "").toLowerCase() === "suspended") {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_SUSPENDED",
+      message: "This Student ID has been suspended. Contact the academy admin for assistance."
+    });
+  }
+
   const quizState = buildQuizState(getOrCreateSheet(), normalizedStudentId);
 
   return jsonResponse({
@@ -147,6 +155,14 @@ function handleQuizSubmission(payload) {
       ok: false,
       code: "STUDENT_NOT_FOUND",
       message: "Student ID was not found in the registration database."
+    });
+  }
+
+  if (String(student["Registration Status"] || "").toLowerCase() === "suspended") {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_SUSPENDED",
+      message: "This Student ID has been suspended. Contact the academy admin for assistance."
     });
   }
 
@@ -398,7 +414,8 @@ function publicStudentProfile(student) {
     country: student["Country"] || "",
     learningInterests: student["Learning Interests"] || "",
     courseCount: student["Course Count"] || "",
-    courseFee: student["Course Fee"] || ""
+    courseFee: student["Course Fee"] || "",
+    adminWarning: student["Admin Warning"] || ""
   };
 }
 

@@ -38,7 +38,10 @@ const HEADERS = [
   "Attendance Commitment",
   "Expectations",
   "Agreements",
-  "Page URL"
+  "Page URL",
+  "Admin Warning",
+  "Admin Notes",
+  "Last Admin Action"
 ];
 
 function doGet(e) {
@@ -46,6 +49,10 @@ function doGet(e) {
 
   if (action === "student") {
     return handleStudentLookup(e.parameter.studentId);
+  }
+
+  if (action === "announcements") {
+    return handlePublicAnnouncements();
   }
 
   return jsonResponse({
@@ -61,6 +68,10 @@ function doPost(e) {
     lock.waitLock(10000);
 
     try {
+      if (String(payload.action || "").indexOf("admin") === 0) {
+        return handleAdminRequest(payload);
+      }
+
       return handleRegistrationSubmission(payload);
     } finally {
       lock.releaseLock();
@@ -116,7 +127,10 @@ function handleRegistrationSubmission(payload) {
     payload.attendanceCommitment || "",
     payload.expectations || "",
     arrayToText(payload.agreements),
-    payload.pageUrl || ""
+    payload.pageUrl || "",
+    "",
+    "",
+    ""
   ];
 
   sheet.appendRow(row);
@@ -150,6 +164,14 @@ function handleStudentLookup(studentId) {
     });
   }
 
+  if (String(student["Registration Status"] || "").toLowerCase() === "suspended") {
+    return jsonResponse({
+      ok: false,
+      code: "STUDENT_SUSPENDED",
+      message: "This Student ID has been suspended. Contact the academy admin for assistance."
+    });
+  }
+
   return jsonResponse({
     ok: true,
     student: {
@@ -162,7 +184,8 @@ function handleStudentLookup(studentId) {
       country: student["Country"],
       learningInterests: student["Learning Interests"],
       courseCount: student["Course Count"],
-      courseFee: student["Course Fee"]
+      courseFee: student["Course Fee"],
+      adminWarning: student["Admin Warning"] || ""
     }
   });
 }

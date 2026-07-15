@@ -12,7 +12,7 @@ EFF means **Everything for Free Academy**. The current program is the AI Tools A
 - `pages/api/` - Next API wrappers for the existing low-cost backend.
 - `lib/server/` - registration, Student ID lookup, and quiz API handlers that forward to Google Apps Script.
 - `public/manifest.webmanifest`, `public/service-worker.js`, `public/app-icon.svg` - PWA install/offline foundation.
-- `google-apps-script/` - Google Sheets, Drive, and email automation.
+- `google-apps-script/` - Google Sheets, Drive, email automation, and protected admin data actions.
 - `quiz-data.js` - objective quiz bank used by the quiz API and React quiz page.
 - `public/module-task-completion-template.jpeg` - master artwork used for automatic module reports.
 
@@ -45,26 +45,58 @@ Current path:
 - The service worker keeps the public app shell and visited pages available when the network is unavailable. API requests and private student records are never cached.
 - Student ID sessions are remembered locally on the signed-in device.
 - Signed-in students receive a timed Google Meet button on Mondays, Wednesdays, and Fridays. It opens 10 minutes before the 10 AM, 4 PM, and 8 PM Lagos sessions and remains available during class.
-- Google Apps Script remains the no-cost backend for registration, student lookup, quiz progress, cooldowns, and performance records.
+- Google Apps Script remains the no-cost backend for registration, student lookup, quiz progress, cooldowns, performance records, announcements, and admin controls.
 - Supabase is reserved in `lib/academyData.js` for later, but it is not active and costs nothing now.
 - Future Android/iOS can use Expo or React Native and reuse the same data model, route ideas, API payloads, and student-progress logic.
 
-When the academy starts making enough money, Supabase can be added for student login, cloud progress sync, payments, certificates, announcements, and admin dashboard features.
+When the academy starts making enough money, Supabase can still be added for stronger identity management, cloud progress sync, payments, and certificates. The current protected admin dashboard uses the existing Google Sheets backend.
+
+## Admin control room
+
+Open `/admin` to access the restricted academy control room. The only permitted email is hardcoded on the server as `viplearn4free@gmail.com`; the password is never hardcoded or sent to the browser bundle.
+
+The admin dashboard provides:
+
+- live database totals and the full registration list;
+- student search and CSV export;
+- registration approval and payment confirmation;
+- student warnings by dashboard notice and email;
+- suspension, restoration, and permanent registration deletion;
+- payment proof links and direct email/WhatsApp contact;
+- announcement publishing, editing, hiding, and deletion;
+- announcements shared automatically with the homepage and signed-in student dashboards.
+
+Add these private environment variables in Vercel:
+
+```text
+ADMIN_PASSWORD=<a strong private password>
+ADMIN_SESSION_SECRET=<at least 32 random characters>
+ADMIN_API_KEY=<a separate random key shared only with Apps Script>
+```
+
+Use `.env.example` as the local configuration template. Never commit the real values.
+
+Admin sessions use a signed, HTTP-only, SameSite cookie and expire after eight hours. Admin database requests are authorized twice: first by the signed Next.js session, then by the private `ADMIN_API_KEY` sent server-to-server to Google Apps Script.
+
+## SEO
+
+The public website includes canonical URLs, search-engine directives, `robots.txt`, `sitemap.xml`, Open Graph and social metadata, and structured Organization/Course data. Private student, quiz, offline, API, and admin routes are excluded from indexing.
 
 ## Connect registration to its Google Sheet
 
 1. Use your existing registration Google Sheet, or create a new one.
 2. Open `Extensions -> Apps Script`.
-3. Paste the full contents of `google-apps-script/Code.gs`.
+3. Paste the full contents of `google-apps-script/Code.gs` and `google-apps-script/AdminCode.gs` into separate files in the same Apps Script project.
 4. Confirm `NOTIFICATION_EMAIL` is `viplearn4free@gmail.com`, or change it if you want responses sent elsewhere.
 5. Paste the registration Sheet ID into `SPREADSHEET_ID`.
-6. Save the script, then run `setupSheet` once and approve the permissions for Sheets, Gmail, and Drive.
-7. Click `Deploy -> New deployment`.
-8. Select `Web app`.
-9. Set `Execute as` to `Me`.
-10. Set access to `Anyone`.
-11. Deploy and copy the Web App URL ending in `/exec`.
-12. In Vercel, add `GOOGLE_REGISTRATION_SCRIPT_URL` with that Web App URL.
+6. Open Apps Script Project Settings, add the script property `ADMIN_API_KEY`, and give it the exact same private value used by Vercel.
+7. Save the script, then run `setupAdminData` once and approve the permissions for Sheets, Gmail, and Drive.
+8. Click `Deploy -> New deployment`.
+9. Select `Web app`.
+10. Set `Execute as` to `Me`.
+11. Set access to `Anyone`.
+12. Deploy and copy the Web App URL ending in `/exec`.
+13. In Vercel, add `GOOGLE_REGISTRATION_SCRIPT_URL` with that Web App URL.
 
 The registration script also provides Student ID lookup for dashboard login. Whenever `Code.gs` changes, create a new Apps Script deployment version and keep the Vercel environment variable pointed at the `/exec` URL.
 

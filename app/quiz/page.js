@@ -3,7 +3,9 @@ import { SiteFooter, SiteHeader } from "../../components/SiteChrome";
 
 export const metadata = {
   title: "Module Quiz",
-  description: "Take objective module quizzes for Everything for Free Academy."
+  description: "Take objective module quizzes for Everything for Free Academy.",
+  alternates: { canonical: "/quiz" },
+  robots: { index: false, follow: false }
 };
 
 export default function QuizPage() {

@@ -4,7 +4,8 @@ import { academyData } from "../../lib/academyData";
 
 export const metadata = {
   title: "Register",
-  description: "Register for the Everything for Free Academy AI tools training program."
+  description: "Register for the Everything for Free Academy AI tools training program.",
+  alternates: { canonical: "/register" }
 };
 
 export default function RegisterPage() {

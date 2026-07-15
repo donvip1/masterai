@@ -13,6 +13,7 @@ import {
 } from "../lib/studentSession";
 import { ConnectionStatus } from "./AppRuntime";
 import LiveClassAccess from "./LiveClassAccess";
+import ManagedAnnouncements from "./ManagedAnnouncements";
 
 const emptyQuizState = {
   cycle: 1,
@@ -306,6 +307,12 @@ export default function DashboardClient() {
             <span className="status-pill is-online">{profile.registrationStatus || "Registered"}</span>
             <span className="status-pill is-online">{profile.paymentStatus || "Payment pending"}</span>
           </div>
+          {profile.adminWarning && (
+            <div className="student-admin-warning" role="alert">
+              <strong>Admin warning</strong>
+              <p>{profile.adminWarning}</p>
+            </div>
+          )}
           <div className="hero-actions">
             <Link className="button primary" href="/quiz">Open Current Quiz</Link>
             <button className="button secondary" type="button" onClick={signOut}>Sign Out</button>
@@ -389,15 +396,7 @@ export default function DashboardClient() {
                 </div>
                 <Link className="mini-link" href="/#announcements">Homepage board</Link>
               </div>
-              <div className="announcement-list">
-                {academyData.announcements.map((announcement) => (
-                  <article key={announcement.id}>
-                    <span>{announcement.label}</span>
-                    <h3>{announcement.title}</h3>
-                    <p>{announcement.detail}</p>
-                  </article>
-                ))}
-              </div>
+              <ManagedAnnouncements />
             </section>
 
             <section className="dashboard-card">

@@ -9,6 +9,24 @@ export const metadata = {
     template: `%s | ${academyData.academy.name}`
   },
   description: "Everything for Free Academy offers practical AI tools training with live classes, quizzes, dashboard progress, and a mobile-ready learning app path.",
+  keywords: ["AI tools training", "AI academy Nigeria", "ChatGPT course", "Canva AI training", "Everything for Free Academy"],
+  authors: [{ name: "Everything for Free Academy" }],
+  creator: "Everything for Free Academy",
+  publisher: "Everything for Free Academy",
+  alternates: {
+    canonical: "/"
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1
+    }
+  },
   applicationName: academyData.academy.name,
   manifest: "/manifest.webmanifest",
   icons: {
@@ -31,7 +49,20 @@ export const metadata = {
     description: "Practical AI tools training with dashboard progress and app-ready learning.",
     url: `https://${academyData.academy.domain}`,
     siteName: academyData.academy.name,
-    type: "website"
+    type: "website",
+    locale: "en_NG",
+    images: [{ url: "/app-icon-512.png", width: 512, height: 512, alt: "EFF Academy logo" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: academyData.academy.name,
+    description: "Practical AI tools training with live classes, quizzes, and student progress.",
+    images: ["/app-icon-512.png"]
+  },
+  formatDetection: {
+    telephone: true,
+    email: true,
+    address: false
   }
 };
 
