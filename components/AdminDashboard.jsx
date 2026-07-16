@@ -1,9 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { practicalProjects } from "../lib/practicalProjects";
 
 const ADMIN_EMAIL = "viplearn4free@gmail.com";
 const emptyAnnouncement = { id: "", label: "", title: "", detail: "", active: true };
+
+function safeSubmissionUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+  } catch (error) {
+    return "";
+  }
+}
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
@@ -32,9 +42,14 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState({ type: "", message: "" });
   const [loading, setLoading] = useState(false);
-  const [overview, setOverview] = useState({ summary: {}, students: [], announcements: [] });
+  const [overview, setOverview] = useState({ summary: {}, students: [], announcements: [], assignments: [], attendance: [] });
   const [announcement, setAnnouncement] = useState(emptyAnnouncement);
   const [studentSearch, setStudentSearch] = useState("");
+  const [projectSearch, setProjectSearch] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState(practicalProjects[0].id);
+  const [recipientMode, setRecipientMode] = useState("all");
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [assignmentDueDate, setAssignmentDueDate] = useState("");
 
   useEffect(() => {
     requestJson("/api/admin/auth")
@@ -57,7 +72,9 @@ export default function AdminDashboard() {
       setOverview({
         summary: result.summary || {},
         students: result.students || [],
-        announcements: result.announcements || []
+        announcements: result.announcements || [],
+        assignments: result.assignments || [],
+        attendance: result.attendance || []
       });
       setStatus({ type: "", message: "" });
     } catch (error) {
@@ -96,7 +113,7 @@ export default function AdminDashboard() {
       body: JSON.stringify({ action: "logout" })
     }).catch(() => {});
     setAuthenticated(false);
-    setOverview({ summary: {}, students: [], announcements: [] });
+    setOverview({ summary: {}, students: [], announcements: [], assignments: [], attendance: [] });
   }
 
   async function runAdminAction(action, payload, successMessage) {
@@ -111,7 +128,9 @@ export default function AdminDashboard() {
       setOverview({
         summary: result.summary || {},
         students: result.students || [],
-        announcements: result.announcements || []
+        announcements: result.announcements || [],
+        assignments: result.assignments || [],
+        attendance: result.attendance || []
       });
       setStatus({ type: "success", message: successMessage });
     } catch (error) {
@@ -189,6 +208,47 @@ export default function AdminDashboard() {
     URL.revokeObjectURL(url);
   }
 
+  async function broadcastAssignment(event) {
+    event.preventDefault();
+    const project = practicalProjects.find((item) => item.id === selectedProjectId);
+
+    if (!project) {
+      setStatus({ type: "error", message: "Select a practical project." });
+      return;
+    }
+
+    if (recipientMode === "selected" && selectedStudentIds.length === 0) {
+      setStatus({ type: "error", message: "Select at least one student recipient." });
+      return;
+    }
+
+    await runAdminAction(
+      "adminBroadcastAssignment",
+      {
+        ...project,
+        dueDate: assignmentDueDate,
+        broadcastToAll: recipientMode === "all",
+        studentIds: recipientMode === "selected" ? selectedStudentIds : []
+      },
+      `${project.title} was assigned successfully.`
+    );
+    setSelectedStudentIds([]);
+  }
+
+  async function completeAssignment(item) {
+    await runAdminAction(
+      "adminUpdateAssignment",
+      {
+        assignmentId: item.assignmentId,
+        studentId: item.studentId,
+        status: "completed",
+        submission: item.submission,
+        note: item.note
+      },
+      `${item.title} was marked completed for ${item.studentId}.`
+    );
+  }
+
   const filteredStudents = useMemo(() => {
     const query = studentSearch.trim().toLowerCase();
 
@@ -201,6 +261,15 @@ export default function AdminDashboard() {
         .some((value) => String(value || "").toLowerCase().includes(query))
     ));
   }, [overview.students, studentSearch]);
+  const filteredProjects = useMemo(() => {
+    const query = projectSearch.trim().toLowerCase();
+    if (!query) return practicalProjects;
+    return practicalProjects.filter((project) => (
+      [project.moduleTitle, project.title, project.summary, project.tools.join(" ")]
+        .some((value) => value.toLowerCase().includes(query))
+    ));
+  }, [projectSearch]);
+  const selectedProject = practicalProjects.find((project) => project.id === selectedProjectId) || practicalProjects[0];
 
   if (!authReady) {
     return <div className="admin-loading">Checking admin access...</div>;
@@ -283,6 +352,81 @@ export default function AdminDashboard() {
                 </div>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="assignment-studio">
+        <div className="admin-panel-heading admin-student-heading">
+          <div><span>Private Project Studio</span><h2>Choose and broadcast practical work</h2></div>
+          <input type="search" value={projectSearch} onChange={(event) => setProjectSearch(event.target.value)} placeholder="Search modules, projects, or free tools..." />
+        </div>
+        <p className="assignment-studio-note">These projects remain private in the admin area until you assign one. Broadcasting creates a separate tracked assignment for every selected student and sends an email notice when an address is available.</p>
+
+        <div className="project-library" aria-label="Practical project library">
+          {filteredProjects.map((project) => (
+            <article key={project.id} className={project.id === selectedProjectId ? "is-selected" : ""}>
+              <div className="project-library-heading">
+                <span>{project.moduleId.replace("module-", "Module ")} · {project.difficulty}</span>
+                <strong>{project.estimatedMinutes} min</strong>
+              </div>
+              <h3>{project.title}</h3>
+              <p>{project.summary}</p>
+              <div className="project-tool-list">{project.tools.map((tool) => <span key={tool}>{tool}</span>)}</div>
+              <button className="button ghost-button" type="button" onClick={() => setSelectedProjectId(project.id)}>{project.id === selectedProjectId ? "Selected" : "Use This Project"}</button>
+            </article>
+          ))}
+        </div>
+
+        <div className="assignment-broadcast-layout">
+          <article className="project-brief-preview">
+            <span>{selectedProject.moduleTitle}</span>
+            <h3>{selectedProject.title}</h3>
+            <p>{selectedProject.summary}</p>
+            <div className="project-brief-block"><strong>Practical prompt</strong><p>{selectedProject.prompt}</p></div>
+            <div className="project-brief-block"><strong>Required deliverable</strong><p>{selectedProject.deliverable}</p></div>
+            <div className="project-brief-block"><strong>Student steps</strong><ol>{selectedProject.steps.map((step) => <li key={step}>{step}</li>)}</ol></div>
+          </article>
+
+          <form className="assignment-broadcast-form" onSubmit={broadcastAssignment}>
+            <div><span>Broadcast Controls</span><h3>Send this assignment</h3></div>
+            <fieldset>
+              <legend>Recipients</legend>
+              <label><input type="radio" name="recipientMode" checked={recipientMode === "all"} onChange={() => setRecipientMode("all")} /> All registered students</label>
+              <label><input type="radio" name="recipientMode" checked={recipientMode === "selected"} onChange={() => setRecipientMode("selected")} /> Selected students only</label>
+            </fieldset>
+            {recipientMode === "selected" && (
+              <label><span>Select students</span><select multiple value={selectedStudentIds} onChange={(event) => setSelectedStudentIds(Array.from(event.target.selectedOptions, (option) => option.value))}>{overview.students.map((student) => <option key={student.studentId} value={student.studentId}>{student.fullName} · {student.studentId}</option>)}</select><small>Hold Command or Ctrl to select more than one.</small></label>
+            )}
+            <label><span>Due date</span><input type="date" value={assignmentDueDate} onChange={(event) => setAssignmentDueDate(event.target.value)} /></label>
+            <button className="button primary" type="submit" disabled={loading || overview.students.length === 0}>{loading ? "Sending..." : `Broadcast to ${recipientMode === "all" ? `${overview.students.length} Students` : `${selectedStudentIds.length} Selected`}`}</button>
+          </form>
+        </div>
+
+        <div className="assignment-operations-grid">
+          <div>
+            <div className="admin-panel-heading"><div><span>Assignment Records</span><h3>Recent broadcasts and submissions</h3></div></div>
+            <div className="assignment-record-list">
+              {overview.assignments.length === 0 ? <p>No assignments have been broadcast yet.</p> : overview.assignments.slice(0, 12).map((item) => {
+                const submissionUrl = safeSubmissionUrl(item.submission);
+                return (
+                  <article key={item.assignmentId}>
+                    <div><strong>{item.title}</strong><span>{item.studentId} · {item.status}</span></div>
+                    <small>{item.dueDate ? `Due ${item.dueDate}` : "No due date"}</small>
+                    {submissionUrl ? <a href={submissionUrl} target="_blank" rel="noreferrer">Open submission</a> : item.submission ? <p>{item.submission}</p> : null}
+                    {item.status === "submitted" && <button className="mini-link" type="button" onClick={() => completeAssignment(item)}>Mark Completed</button>}
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <div className="admin-panel-heading"><div><span>Attendance</span><h3>Recent class check-ins</h3></div></div>
+            <div className="attendance-record-list">
+              {overview.attendance.length === 0 ? <p>No attendance check-ins yet.</p> : overview.attendance.slice(0, 12).map((item) => (
+                <article key={item.attendanceId}><strong>{item.studentId}</strong><span>{item.sessionLabel}</span><small>{item.checkedInAt}</small></article>
+              ))}
+            </div>
           </div>
         </div>
       </section>

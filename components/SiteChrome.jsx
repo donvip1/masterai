@@ -25,6 +25,11 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <p>{academyData.academy.name}</p>
+      <nav className="footer-links" aria-label="Policies">
+        <Link href="/privacy">Privacy</Link>
+        <Link href="/terms">Terms</Link>
+        <Link href="/refunds">Refunds</Link>
+      </nav>
       <p>{academyData.academy.domain}</p>
     </footer>
   );

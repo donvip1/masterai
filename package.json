@@ -8,7 +8,7 @@
     "build": "next build",
     "vercel-build": "next build",
     "start": "next start",
-    "check": "node --check quiz-data.js && node --check public/service-worker.js && node --check lib/server/register.js && node --check lib/server/student.js && node --check lib/server/quiz.js && node --check lib/server/moduleReport.js && node --check lib/server/adminAuth.js && node --check lib/server/admin.js && node --check lib/server/announcements.js && node --check next.config.js && node scripts/check-apps-script.js"
+    "check": "node --check quiz-data.js && node --check public/service-worker.js && node --check lib/server/register.js && node --check lib/server/student.js && node --check lib/server/quiz.js && node --check lib/server/moduleReport.js && node --check lib/server/adminAuth.js && node --check lib/server/admin.js && node --check lib/server/announcements.js && node --check lib/server/assignments.js && node --check lib/server/attendance.js && node --check next.config.js && node scripts/check-apps-script.js"
   },
   "engines": {
     "node": "20.x"

@@ -8,10 +8,50 @@ const ADMIN_ANNOUNCEMENT_HEADERS = [
   "Created At",
   "Updated At"
 ];
+const ADMIN_ASSIGNMENT_SHEET = "Assignments";
+const ADMIN_ASSIGNMENT_HEADERS = [
+  "Assignment ID",
+  "Project ID",
+  "Module ID",
+  "Module Title",
+  "Title",
+  "Summary",
+  "Tools",
+  "Difficulty",
+  "Estimated Minutes",
+  "Prompt",
+  "Deliverable",
+  "Steps",
+  "Student ID",
+  "Due Date",
+  "Status",
+  "Submission",
+  "Student Note",
+  "Assigned At",
+  "Updated At"
+];
+const ADMIN_ATTENDANCE_SHEET = "Attendance";
+const ADMIN_ATTENDANCE_HEADERS = [
+  "Attendance ID",
+  "Student ID",
+  "Session ID",
+  "Session Label",
+  "Checked In At",
+  "Status",
+  "Source"
+];
+const ADMIN_AUDIT_SHEET = "Admin Audit";
+const ADMIN_AUDIT_HEADERS = ["Timestamp", "Action", "Target", "Details"];
+const ADMIN_OPERATIONS_SHEET = "Operations Log";
+const ADMIN_OPERATIONS_HEADERS = ["Timestamp", "Operation", "Status", "Details"];
 
 function setupAdminData() {
   setupSheet();
   const announcementSheet = getAdminAnnouncementSheet();
+  getAdminAssignmentSheet();
+  getAdminAttendanceSheet();
+  getAdminAuditSheet();
+  getAdminOperationsSheet();
 
   if (announcementSheet.getLastRow() < 2) {
     const now = new Date();
@@ -36,6 +76,63 @@ function setupAdminData() {
   }
 }
 
+function setupOperationalTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === "backupAcademyData") {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger("backupAcademyData")
+    .timeBased()
+    .everyDays(1)
+    .atHour(3)
+    .create();
+
+  recordOperationalEvent("Backup schedule", "ready", "Daily backup trigger created for approximately 3 AM script time.");
+}
+
+function backupAcademyData() {
+  try {
+    const spreadsheet = getSpreadsheet();
+    const folderName = CONFIG.ACADEMY_NAME + " Database Backups";
+    const folders = DriveApp.getFoldersByName(folderName);
+    const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+    const sourceFile = DriveApp.getFileById(spreadsheet.getId());
+    const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd-HHmm");
+    sourceFile.makeCopy(CONFIG.ACADEMY_NAME + " Backup " + timestamp, folder);
+    trimOldBackups(folder, 30);
+    recordOperationalEvent("Database backup", "success", "Spreadsheet backup created.");
+  } catch (error) {
+    recordOperationalEvent("Database backup", "error", error.message);
+    try {
+      MailApp.sendEmail(CONFIG.NOTIFICATION_EMAIL, "Academy backup failed", "The daily academy database backup failed.\n\n" + error.message);
+    } catch (mailError) {}
+    throw error;
+  }
+}
+
+function trimOldBackups(folder, limit) {
+  const files = [];
+  const iterator = folder.getFiles();
+  while (iterator.hasNext()) files.push(iterator.next());
+  files.sort(function(first, second) { return second.getDateCreated().getTime() - first.getDateCreated().getTime(); });
+  files.slice(limit).forEach(function(file) { file.setTrashed(true); });
+}
+
+function getAdminOperationsSheet() {
+  const spreadsheet = getSpreadsheet();
+  let sheet = spreadsheet.getSheetByName(ADMIN_OPERATIONS_SHEET);
+  if (!sheet) sheet = spreadsheet.insertSheet(ADMIN_OPERATIONS_SHEET);
+  sheet.getRange(1, 1, 1, ADMIN_OPERATIONS_HEADERS.length).setValues([ADMIN_OPERATIONS_HEADERS]);
+  sheet.setFrozenRows(1);
+  return sheet;
+}
+
+function recordOperationalEvent(operation, status, details) {
+  getAdminOperationsSheet().appendRow([new Date(), String(operation || ""), String(status || ""), String(details || "")]);
+}
+
 function handlePublicAnnouncements() {
   const announcements = readAdminAnnouncements(false);
 
@@ -43,6 +140,26 @@ function handlePublicAnnouncements() {
     ok: true,
     announcements: announcements
   });
+}
+
+function handlePublicAssignments(studentId) {
+  const normalizedStudentId = normalizeStudentId(studentId);
+
+  if (!normalizedStudentId) {
+    return jsonResponse({ ok: false, code: "STUDENT_ID_REQUIRED", message: "Student ID is required." });
+  }
+
+  const student = findStudentById(normalizedStudentId);
+
+  if (!student) {
+    return jsonResponse({ ok: false, code: "STUDENT_NOT_FOUND", message: "Student ID was not found." });
+  }
+
+  if (String(student["Registration Status"] || "").toLowerCase() === "suspended") {
+    return jsonResponse({ ok: false, code: "STUDENT_SUSPENDED", message: "This Student ID has been suspended." });
+  }
+
+  return jsonResponse({ ok: true, assignments: readStudentAssignments(normalizedStudentId) });
 }
 
 function handleAdminRequest(request) {
@@ -56,16 +173,30 @@ function handleAdminRequest(request) {
 
   if (action === "adminSaveAnnouncement") {
     saveAdminAnnouncement(payload);
+    recordAdminAudit("Save announcement", payload.id || payload.title, payload.title);
     return jsonResponse(buildAdminOverview());
   }
 
   if (action === "adminDeleteAnnouncement") {
     deleteAdminAnnouncement(payload.id);
+    recordAdminAudit("Delete announcement", payload.id, "");
     return jsonResponse(buildAdminOverview());
   }
 
   if (action === "adminUpdateStudent") {
     updateAdminStudent(payload);
+    recordAdminAudit("Update student", payload.studentId, payload.operation);
+    return jsonResponse(buildAdminOverview());
+  }
+
+  if (action === "adminBroadcastAssignment") {
+    broadcastAdminAssignment(payload);
+    return jsonResponse(buildAdminOverview());
+  }
+
+  if (action === "adminUpdateAssignment") {
+    updateAdminAssignment(payload, true);
+    recordAdminAudit("Update assignment", payload.assignmentId, payload.status);
     return jsonResponse(buildAdminOverview());
   }
 
@@ -102,8 +233,250 @@ function buildAdminOverview() {
       paidStudents: paidStudents
     },
     students: students,
-    announcements: readAdminAnnouncements(true)
+    announcements: readAdminAnnouncements(true),
+    assignments: readAdminAssignments().slice(0, 500),
+    attendance: readAdminAttendance()
   };
+}
+
+function getAdminAssignmentSheet() {
+  const spreadsheet = getSpreadsheet();
+  let sheet = spreadsheet.getSheetByName(ADMIN_ASSIGNMENT_SHEET);
+
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(ADMIN_ASSIGNMENT_SHEET);
+  }
+
+  sheet.getRange(1, 1, 1, ADMIN_ASSIGNMENT_HEADERS.length).setValues([ADMIN_ASSIGNMENT_HEADERS]);
+  sheet.setFrozenRows(1);
+  return sheet;
+}
+
+function broadcastAdminAssignment(payload) {
+  const projectId = String(payload.projectId || "").trim();
+  const studentIds = Array.isArray(payload.studentIds) ? payload.studentIds : [];
+  const requestedRecipients = payload.broadcastToAll ? readAdminStudents().filter(function(student) {
+    return String(student.registrationStatus || "").toLowerCase() !== "suspended";
+  }).map(function(student) {
+    return student.studentId;
+  }) : studentIds.map(normalizeStudentId).filter(Boolean);
+  const recipients = requestedRecipients.filter(function(studentId, index) {
+    return requestedRecipients.indexOf(studentId) === index;
+  });
+
+  if (!projectId || !String(payload.title || "").trim() || !recipients.length) {
+    throw new Error("Choose a project and at least one student recipient.");
+  }
+
+  const sheet = getAdminAssignmentSheet();
+  const now = new Date();
+  const baseId = projectId + "-" + now.getTime();
+  const steps = Array.isArray(payload.steps) ? payload.steps.join("||") : String(payload.steps || "");
+  const tools = Array.isArray(payload.tools) ? payload.tools.join(", ") : String(payload.tools || "");
+  const rows = recipients.map(function(studentId) {
+    return [
+      baseId + "-" + studentId,
+      projectId,
+      String(payload.moduleId || ""),
+      String(payload.moduleTitle || ""),
+      String(payload.title || ""),
+      String(payload.summary || ""),
+      tools,
+      String(payload.difficulty || ""),
+      Number(payload.estimatedMinutes || 0),
+      String(payload.prompt || ""),
+      String(payload.deliverable || ""),
+      steps,
+      studentId,
+      String(payload.dueDate || ""),
+      "assigned",
+      "",
+      "",
+      now,
+      now
+    ];
+  });
+
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, ADMIN_ASSIGNMENT_HEADERS.length).setValues(rows);
+  recipients.forEach(function(studentId) {
+    const student = findAdminStudentRow(studentId);
+    if (student) {
+      try {
+        sendAssignmentNotice(student.record, payload);
+      } catch (error) {
+        recordAdminAudit("Assignment email failed", studentId, error.message);
+      }
+    }
+  });
+  recordAdminAudit("Broadcast assignment", projectId, recipients.join(", "));
+}
+
+function updateAdminAssignment(payload, adminRequest) {
+  const assignment = findAssignmentRow(payload.assignmentId);
+
+  if (!assignment || normalizeStudentId(assignment.record["Student ID"]) !== normalizeStudentId(payload.studentId)) {
+    throw new Error("Assignment was not found for this student.");
+  }
+
+  const status = String(payload.status || "");
+  const allowedStatuses = adminRequest
+    ? ["assigned", "in-progress", "submitted", "completed"]
+    : ["in-progress", "submitted"];
+
+  if (allowedStatuses.indexOf(status) < 0) {
+    throw new Error("Unsupported assignment status.");
+  }
+
+  const statusColumn = assignment.headers.indexOf("Status");
+  const submissionColumn = assignment.headers.indexOf("Submission");
+  const noteColumn = assignment.headers.indexOf("Student Note");
+  const updatedColumn = assignment.headers.indexOf("Updated At");
+  assignment.sheet.getRange(assignment.rowNumber, statusColumn + 1).setValue(status);
+  assignment.sheet.getRange(assignment.rowNumber, submissionColumn + 1).setValue(String(payload.submission || ""));
+  assignment.sheet.getRange(assignment.rowNumber, noteColumn + 1).setValue(String(payload.note || ""));
+  assignment.sheet.getRange(assignment.rowNumber, updatedColumn + 1).setValue(new Date());
+}
+
+function readStudentAssignments(studentId) {
+  return readAdminAssignments().filter(function(assignment) {
+    return normalizeStudentId(assignment.studentId) === normalizeStudentId(studentId);
+  });
+}
+
+function readAdminAssignments() {
+  const sheet = getAdminAssignmentSheet();
+  const values = sheet.getDataRange().getValues();
+
+  if (values.length < 2) {
+    return [];
+  }
+
+  const headers = values[0].map(function(header) { return String(header || ""); });
+  return values.slice(1).filter(function(row) { return String(row[0] || ""); }).map(function(row) {
+    const record = {};
+    headers.forEach(function(header, index) { record[header] = displayCellValue(row[index]); });
+    return {
+      assignmentId: record["Assignment ID"] || "",
+      projectId: record["Project ID"] || "",
+      moduleId: record["Module ID"] || "",
+      moduleTitle: record["Module Title"] || "",
+      title: record.Title || "",
+      summary: record.Summary || "",
+      tools: record.Tools || "",
+      difficulty: record.Difficulty || "",
+      estimatedMinutes: record["Estimated Minutes"] || "",
+      prompt: record.Prompt || "",
+      deliverable: record.Deliverable || "",
+      steps: String(record.Steps || "").split("||").filter(Boolean),
+      studentId: record["Student ID"] || "",
+      dueDate: record["Due Date"] || "",
+      status: record.Status || "assigned",
+      submission: record.Submission || "",
+      note: record["Student Note"] || "",
+      assignedAt: record["Assigned At"] || "",
+      updatedAt: record["Updated At"] || ""
+    };
+  }).reverse();
+}
+
+function findAssignmentRow(assignmentId) {
+  const sheet = getAdminAssignmentSheet();
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(function(header) { return String(header || ""); });
+
+  for (let index = 1; index < values.length; index += 1) {
+    if (String(values[index][0] || "") !== String(assignmentId || "")) continue;
+    const record = {};
+    headers.forEach(function(header, columnIndex) { record[header] = displayCellValue(values[index][columnIndex]); });
+    return { sheet: sheet, rowNumber: index + 1, headers: headers, record: record };
+  }
+
+  return null;
+}
+
+function sendAssignmentNotice(student, payload) {
+  const email = String(student["Email Address"] || "").trim();
+  if (!email) return;
+  const body = "Hello " + (student["Full Name"] || "student") + ",\n\n" +
+    "A new practical assignment has been added to your EFF Academy dashboard.\n\n" +
+    "Project: " + (payload.title || "") + "\n" +
+    "Module: " + (payload.moduleTitle || "") + "\n" +
+    "Due: " + (payload.dueDate || "No due date") + "\n\n" +
+    "Open your Student Dashboard to view the steps and submit your work.\n\n" +
+    "Everything for Free Academy";
+  MailApp.sendEmail(email, "New practical assignment - " + CONFIG.ACADEMY_NAME, body);
+}
+
+function getAdminAttendanceSheet() {
+  const spreadsheet = getSpreadsheet();
+  let sheet = spreadsheet.getSheetByName(ADMIN_ATTENDANCE_SHEET);
+  if (!sheet) sheet = spreadsheet.insertSheet(ADMIN_ATTENDANCE_SHEET);
+  sheet.getRange(1, 1, 1, ADMIN_ATTENDANCE_HEADERS.length).setValues([ADMIN_ATTENDANCE_HEADERS]);
+  sheet.setFrozenRows(1);
+  return sheet;
+}
+
+function handleAttendanceCheckIn(payload) {
+  const studentId = normalizeStudentId(payload.studentId);
+  const student = findStudentById(studentId);
+  if (!student) throw new Error("Student ID was not found.");
+  if (String(student["Registration Status"] || "").toLowerCase() === "suspended") throw new Error("This Student ID has been suspended.");
+  const sessionId = String(payload.sessionId || "").trim();
+  if (!sessionId) throw new Error("A live class session is required.");
+  if (!isAttendanceWindowOpen(sessionId)) throw new Error("Attendance check-in is only available during the live class window.");
+  const sheet = getAdminAttendanceSheet();
+  const values = sheet.getDataRange().getValues();
+  const duplicate = values.slice(1).some(function(row) {
+    return normalizeStudentId(row[1]) === studentId && String(row[2]) === sessionId;
+  });
+  if (!duplicate) {
+    sheet.appendRow([sessionId + "-" + studentId, studentId, sessionId, String(payload.sessionLabel || "Live Class"), new Date(), "present", "dashboard"]);
+  }
+  return jsonResponse({ ok: true, checkedIn: true });
+}
+
+function isAttendanceWindowOpen(sessionId) {
+  const now = new Date();
+  const dateKey = Utilities.formatDate(now, "Africa/Lagos", "yyyy-MM-dd");
+  const weekday = Utilities.formatDate(now, "Africa/Lagos", "EEE");
+  const timeParts = Utilities.formatDate(now, "Africa/Lagos", "HH:mm").split(":");
+  const currentMinutes = Number(timeParts[0]) * 60 + Number(timeParts[1]);
+  const sessions = { morning: 10 * 60, evening: 16 * 60, night: 20 * 60 };
+  const sessionName = String(sessionId || "").split("-")[0];
+  const startMinutes = sessions[sessionName];
+
+  if (["Mon", "Wed", "Fri"].indexOf(weekday) < 0 || startMinutes === undefined) return false;
+  if (sessionId !== sessionName + "-" + dateKey) return false;
+  return currentMinutes >= startMinutes - 10 && currentMinutes < startMinutes + 120;
+}
+
+function readAdminAttendance() {
+  const sheet = getAdminAttendanceSheet();
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return [];
+  return values.slice(1).reverse().slice(0, 100).map(function(row) {
+    return {
+      attendanceId: String(row[0] || ""),
+      studentId: String(row[1] || ""),
+      sessionId: String(row[2] || ""),
+      sessionLabel: String(row[3] || ""),
+      checkedInAt: displayCellValue(row[4]),
+      status: String(row[5] || "present")
+    };
+  });
+}
+
+function getAdminAuditSheet() {
+  const spreadsheet = getSpreadsheet();
+  let sheet = spreadsheet.getSheetByName(ADMIN_AUDIT_SHEET);
+  if (!sheet) sheet = spreadsheet.insertSheet(ADMIN_AUDIT_SHEET);
+  sheet.getRange(1, 1, 1, ADMIN_AUDIT_HEADERS.length).setValues([ADMIN_AUDIT_HEADERS]);
+  sheet.setFrozenRows(1);
+  return sheet;
+}
+
+function recordAdminAudit(action, target, details) {
+  getAdminAuditSheet().appendRow([new Date(), action, String(target || ""), String(details || "")]);
 }
 
 function readAdminStudents() {

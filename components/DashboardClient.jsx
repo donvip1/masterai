@@ -15,6 +15,7 @@ import { ConnectionStatus } from "./AppRuntime";
 import LiveClassAccess from "./LiveClassAccess";
 import ManagedAnnouncements from "./ManagedAnnouncements";
 import StudentEngagement from "./StudentEngagement";
+import StudentAssignments from "./StudentAssignments";
 
 const emptyQuizState = {
   cycle: 1,
@@ -334,7 +335,7 @@ export default function DashboardClient() {
           <div className="class-day-list">
             {academyData.academy.classDays.map((day) => <strong key={day}>{day}</strong>)}
           </div>
-          <LiveClassAccess preferredSession={profile.preferredSession} />
+          <LiveClassAccess preferredSession={profile.preferredSession} studentId={session.studentId} />
         </aside>
       </section>
 
@@ -391,6 +392,8 @@ export default function DashboardClient() {
               studentId={session.studentId}
               ready={quizLoaded && !quizStatus}
             />
+
+            <StudentAssignments studentId={session.studentId} />
 
             {!quizState.canAttempt && (
               <section className="dashboard-card cooldown-card">

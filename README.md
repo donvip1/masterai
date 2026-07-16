@@ -46,6 +46,7 @@ Current path:
 - Student ID sessions are remembered locally on the signed-in device.
 - Signed-in students receive a timed Google Meet button on Mondays, Wednesdays, and Fridays. It opens 10 minutes before the 10 AM, 4 PM, and 8 PM Lagos sessions and remains available during class.
 - The student dashboard turns verified quiz activity into XP levels, learning streaks, progress milestones, achievement badges, and on-device milestone celebrations.
+- A private admin Project Studio provides one real practical project for every module using free AI tools. Admins can broadcast a project to all or selected students, and every assignment, submission, completion, attendance check-in, and admin action is recorded in Google Sheets.
 - Google Apps Script remains the no-cost backend for registration, student lookup, quiz progress, cooldowns, performance records, announcements, and admin controls.
 - Supabase is reserved in `lib/academyData.js` for later, but it is not active and costs nothing now.
 - Future Android/iOS can use Expo or React Native and reuse the same data model, route ideas, API payloads, and student-progress logic.
@@ -66,6 +67,9 @@ The admin dashboard provides:
 - payment proof links and direct email/WhatsApp contact;
 - announcement publishing, editing, hiding, and deletion;
 - announcements shared automatically with the homepage and signed-in student dashboards.
+- a private 15-module practical project library with prompts, free tools, steps, deliverables, due dates, and per-student broadcasting;
+- assignment submission review, completion recording, live attendance records, and an admin audit sheet.
+- daily Google Sheet backups with 30-copy retention, an operations log, and an email alert when a backup fails.
 
 Add these private environment variables in Vercel:
 
@@ -91,13 +95,16 @@ The public website includes canonical URLs, search-engine directives, `robots.tx
 4. Confirm `NOTIFICATION_EMAIL` is `viplearn4free@gmail.com`, or change it if you want responses sent elsewhere.
 5. Paste the registration Sheet ID into `SPREADSHEET_ID`.
 6. Open Apps Script Project Settings, add the script property `ADMIN_API_KEY`, and give it the exact same private value used by Vercel.
-7. Save the script, then run `setupAdminData` once and approve the permissions for Sheets, Gmail, and Drive.
-8. Click `Deploy -> New deployment`.
-9. Select `Web app`.
-10. Set `Execute as` to `Me`.
-11. Set access to `Anyone`.
-12. Deploy and copy the Web App URL ending in `/exec`.
-13. In Vercel, add `GOOGLE_REGISTRATION_SCRIPT_URL` with that Web App URL.
+7. Save the script, then run `setupAdminData` once and approve the permissions for Sheets, Gmail, and Drive. Run it again after this assignment update so the `Assignments`, `Attendance`, `Admin Audit`, and `Operations Log` sheets are created.
+8. Run `setupOperationalTriggers` once to schedule a daily backup at approximately 3 AM. Google Drive keeps the latest 30 backup copies and the admin email receives a failure notice if a backup cannot be created.
+9. Click `Deploy -> New deployment`.
+10. Select `Web app`.
+11. Set `Execute as` to `Me`.
+12. Set access to `Anyone`.
+13. Deploy and copy the Web App URL ending in `/exec`.
+14. In Vercel, add `GOOGLE_REGISTRATION_SCRIPT_URL` with that Web App URL.
+
+External services remain intentionally disabled until their credentials are supplied: Paystack for card/bank checkout and refunds, WhatsApp Business for automated messages, a web-push provider/VAPID keys for browser notifications, and an email or SMS OTP provider for stronger student identity. The current app uses verified database records, email notifications, payment proof review, signed admin sessions, and Student ID access; Student ID should not be treated as a private password.
 
 The registration script also provides Student ID lookup for dashboard login. Whenever `Code.gs` changes, create a new Apps Script deployment version and keep the Vercel environment variable pointed at the `/exec` URL.
 

@@ -55,6 +55,10 @@ function doGet(e) {
     return handlePublicAnnouncements();
   }
 
+  if (action === "assignments") {
+    return handlePublicAssignments(e.parameter.studentId);
+  }
+
   return jsonResponse({
     ok: true,
     message: CONFIG.ACADEMY_NAME + " registration endpoint is live."
@@ -70,6 +74,15 @@ function doPost(e) {
     try {
       if (String(payload.action || "").indexOf("admin") === 0) {
         return handleAdminRequest(payload);
+      }
+
+      if (payload.action === "studentAssignmentUpdate") {
+        updateAdminAssignment(payload, false);
+        return jsonResponse({ ok: true, assignments: readStudentAssignments(payload.studentId) });
+      }
+
+      if (payload.action === "attendanceCheckIn") {
+        return handleAttendanceCheckIn(payload);
       }
 
       return handleRegistrationSubmission(payload);
