@@ -1288,6 +1288,29 @@ button {
   line-height: 1.2;
 }
 
+.live-class-countdown {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.live-class-countdown span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.live-class-countdown strong {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.06rem;
+}
+
 .live-class-preference,
 .live-class-note {
   margin: 0;
@@ -1733,6 +1756,323 @@ button {
   color: var(--navy);
   font-size: clamp(1.42rem, 3vw, 2.05rem);
   line-height: 1.1;
+}
+
+.engagement-hub {
+  padding: 8px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.engagement-heading {
+  margin-bottom: 18px;
+}
+
+.engagement-level-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #eaf8f5;
+  color: #08786e;
+  font-size: 0.78rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.engagement-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.level-progress-card,
+.engagement-stat-card,
+.achievement-grid article {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, 0.045);
+}
+
+.level-progress-card {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f2f7ff, #fff 58%, #effaf7);
+}
+
+.level-progress-ring {
+  display: grid;
+  place-content: center;
+  width: 112px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #fff 0 58%, transparent 59%),
+    conic-gradient(var(--teal) 0 var(--level-progress), #dbe6ef var(--level-progress) 360deg);
+  text-align: center;
+}
+
+.level-progress-ring span,
+.level-progress-card > div:last-child > span,
+.engagement-stat-card > span,
+.engagement-motivation > span,
+.achievement-grid article span {
+  color: var(--faint);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.level-progress-ring strong {
+  color: var(--navy);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.level-progress-card > div:last-child > strong,
+.engagement-stat-card > strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--navy);
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  line-height: 1.08;
+}
+
+.level-progress-card p,
+.engagement-stat-card p,
+.achievement-grid article p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.engagement-progress-track {
+  height: 8px;
+  margin-top: 13px;
+  border-radius: 999px;
+  background: #dfe8f1;
+  overflow: hidden;
+}
+
+.engagement-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--blue));
+  transition: width 300ms ease;
+}
+
+.engagement-stat-card {
+  min-height: 148px;
+  padding: 17px;
+}
+
+.streak-card {
+  border-top: 4px solid var(--amber);
+}
+
+.milestone-card {
+  border-top: 4px solid var(--teal);
+}
+
+.achievement-count-card {
+  grid-column: 1 / -1;
+  border-top: 4px solid var(--blue);
+}
+
+.achievement-count-card .mini-link {
+  margin-top: 12px;
+}
+
+.engagement-motivation {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-left: 4px solid var(--amber);
+  background: #fffbeb;
+}
+
+.engagement-motivation p {
+  margin: 0;
+  color: #5f4308;
+  font-size: 0.9rem;
+}
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.achievement-grid article {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-height: 122px;
+  padding: 13px;
+}
+
+.achievement-grid article.is-locked {
+  background: #f8fafc;
+  box-shadow: none;
+  opacity: 0.64;
+}
+
+.achievement-grid article.is-unlocked {
+  border-color: rgba(15, 148, 136, 0.28);
+  background: linear-gradient(180deg, #f0fdfa, #fff);
+}
+
+.achievement-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #e7edf7;
+  color: var(--faint);
+  font-size: 0.74rem;
+  font-weight: 950;
+}
+
+.is-unlocked .achievement-icon {
+  background: var(--teal);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(15, 148, 136, 0.22);
+}
+
+.achievement-grid article strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--navy);
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.milestone-celebration {
+  position: fixed;
+  right: 22px;
+  bottom: max(22px, env(safe-area-inset-bottom));
+  z-index: 55;
+  width: min(390px, calc(100vw - 28px));
+  padding: 21px 48px 21px 21px;
+  border: 1px solid rgba(253, 230, 138, 0.72);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #16256b, #0f766e);
+  color: #fff;
+  box-shadow: 0 24px 70px rgba(6, 15, 45, 0.34);
+  animation: celebration-in 380ms ease both;
+  overflow: hidden;
+}
+
+.milestone-celebration > span {
+  color: #fde68a;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.milestone-celebration > strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 1.22rem;
+  line-height: 1.18;
+}
+
+.milestone-celebration p {
+  margin: 7px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.88rem;
+}
+
+.milestone-celebration button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.celebration-spark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--amber);
+  animation: celebration-spark 1.4s ease-in-out infinite;
+}
+
+.spark-one {
+  top: 16px;
+  right: 58px;
+}
+
+.spark-two {
+  right: 78px;
+  bottom: 18px;
+  background: #5eead4;
+  animation-delay: 180ms;
+}
+
+.spark-three {
+  top: 50%;
+  right: 28px;
+  background: #bfdbfe;
+  animation-delay: 340ms;
+}
+
+@keyframes celebration-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes celebration-spark {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-8px) rotate(90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .milestone-celebration,
+  .celebration-spark {
+    animation: none;
+  }
+
+  .engagement-progress-track span {
+    transition: none;
+  }
 }
 
 .announcement-list,
@@ -2875,7 +3215,8 @@ input[type="checkbox"] {
 
   .lesson-system,
   .announcement-list,
-  .backend-grid {
+  .backend-grid,
+  .achievement-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2982,6 +3323,8 @@ input[type="checkbox"] {
   .app-feature-grid,
   .dashboard-metrics,
   .admin-metrics,
+  .engagement-overview,
+  .achievement-grid,
   .announcement-list,
   .backend-grid,
   .contact-grid,
@@ -2993,6 +3336,30 @@ input[type="checkbox"] {
   .quiz-options,
   .quiz-footer {
     grid-template-columns: 1fr;
+  }
+
+  .engagement-motivation {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .engagement-level-pill {
+    white-space: normal;
+  }
+
+  .level-progress-card {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .level-progress-ring {
+    width: 88px;
+  }
+
+  .milestone-celebration {
+    right: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
   }
 
   .stack-core {

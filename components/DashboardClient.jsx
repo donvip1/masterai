@@ -14,6 +14,7 @@ import {
 import { ConnectionStatus } from "./AppRuntime";
 import LiveClassAccess from "./LiveClassAccess";
 import ManagedAnnouncements from "./ManagedAnnouncements";
+import StudentEngagement from "./StudentEngagement";
 
 const emptyQuizState = {
   cycle: 1,
@@ -24,6 +25,10 @@ const emptyQuizState = {
   progressPercent: 0,
   attemptsCount: 0,
   totalAttemptsCount: 0,
+  passedAttemptsCount: 0,
+  perfectScoresCount: 0,
+  bestScore: 0,
+  activityDates: [],
   results: {},
   latestResult: null,
   canAttempt: true,
@@ -79,6 +84,7 @@ export default function DashboardClient() {
   const [quizState, setQuizState] = useState(emptyQuizState);
   const [quizStatus, setQuizStatus] = useState("");
   const [loadingProgress, setLoadingProgress] = useState(false);
+  const [quizLoaded, setQuizLoaded] = useState(false);
 
   useEffect(() => {
     const savedSession = readStudentSession();
@@ -129,6 +135,7 @@ export default function DashboardClient() {
 
   async function loadQuizStatus(activeStudentId) {
     setLoadingProgress(true);
+    setQuizLoaded(false);
     setQuizStatus("");
 
     try {
@@ -163,6 +170,7 @@ export default function DashboardClient() {
       setQuizStatus(error.message || "Progress could not be loaded.");
     } finally {
       setLoadingProgress(false);
+      setQuizLoaded(true);
     }
   }
 
@@ -199,6 +207,7 @@ export default function DashboardClient() {
     clearStudentSession();
     setSession(null);
     setQuizState(emptyQuizState);
+    setQuizLoaded(false);
     setQuizStatus("");
     setLoginStatus({ type: "", message: "" });
   }
@@ -376,6 +385,12 @@ export default function DashboardClient() {
                 <p>{quizState.canAttempt ? "Current quiz is available." : `Next access: ${nextAttemptLabel}`}</p>
               </article>
             </div>
+
+            <StudentEngagement
+              quizState={quizState}
+              studentId={session.studentId}
+              ready={quizLoaded && !quizStatus}
+            />
 
             {!quizState.canAttempt && (
               <section className="dashboard-card cooldown-card">

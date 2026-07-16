@@ -45,6 +45,7 @@ Current path:
 - The service worker keeps the public app shell and visited pages available when the network is unavailable. API requests and private student records are never cached.
 - Student ID sessions are remembered locally on the signed-in device.
 - Signed-in students receive a timed Google Meet button on Mondays, Wednesdays, and Fridays. It opens 10 minutes before the 10 AM, 4 PM, and 8 PM Lagos sessions and remains available during class.
+- The student dashboard turns verified quiz activity into XP levels, learning streaks, progress milestones, achievement badges, and on-device milestone celebrations.
 - Google Apps Script remains the no-cost backend for registration, student lookup, quiz progress, cooldowns, performance records, announcements, and admin controls.
 - Supabase is reserved in `lib/academyData.js` for later, but it is not active and costs nothing now.
 - Future Android/iOS can use Expo or React Native and reuse the same data model, route ideas, API payloads, and student-progress logic.
@@ -127,6 +128,7 @@ The quiz script now:
 - opens the next module 48 hours after a passed attempt;
 - resets to module 0 after all modules are passed;
 - stores quiz cycles and the next available attempt time.
+- returns all-time activity dates, pass totals, best scores, and perfect-score totals for the student engagement system.
 
 After replacing `QuizCode.gs`, run `setupSheet` once so the `Cycle` and `Next Attempt At` columns are added, then create a new Web App deployment version.
 

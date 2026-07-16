@@ -292,6 +292,18 @@ function buildQuizState(sheet, studentId) {
     progressPercent: Math.round((completedModules.length / MODULE_ORDER.length) * 100),
     attemptsCount: cycleHistory.length,
     totalAttemptsCount: history.length,
+    passedAttemptsCount: history.filter(function(attempt) {
+      return attempt.result === "Passed";
+    }).length,
+    perfectScoresCount: history.filter(function(attempt) {
+      return attempt.percentage >= 100;
+    }).length,
+    bestScore: history.reduce(function(best, attempt) {
+      return Math.max(best, Number(attempt.percentage || 0));
+    }, 0),
+    activityDates: history.map(function(attempt) {
+      return attempt.timestamp.toISOString();
+    }),
     results: results,
     latestResult: latestAttempt ? publicQuizAttempt(latestAttempt) : null,
     canAttempt: canAttempt,
